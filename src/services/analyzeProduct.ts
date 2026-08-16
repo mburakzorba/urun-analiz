@@ -33,14 +33,21 @@ export async function analyzeProductPhoto(imageUri: string, barcode?: string): P
       formData.append("barcode", barcode);
     }
 
+    // ÖNEMLİ: Content-Type header'ını BURADA elle set ETMİYORUZ. FormData
+    // gönderirken fetch/React Native, multipart body'nin gerektirdiği
+    // "boundary" değerini otomatik ekleyerek doğru Content-Type'ı kendisi
+    // oluşturur (örn. "multipart/form-data; boundary=----abc123"). Elle
+    // "multipart/form-data" yazarsak boundary eksik kalır, sunucu (multer)
+    // isteği parse edemez ve istek başarısız olur — bu da sessizce mock
+    // veriye düşülmesine yol açar.
     const response = await fetch(`${API_URL}/analyze`, {
       method: "POST",
-      headers: { "Content-Type": "multipart/form-data" },
       body: formData,
     });
 
     if (!response.ok) {
-      throw new Error(`Backend hata döndürdü: ${response.status}`);
+      const bodyText = await response.text().catch(() => "");
+      throw new Error(`Backend hata döndürdü: ${response.status} ${bodyText}`.trim());
     }
 
     const data = (await response.json()) as ProductAnalysis;

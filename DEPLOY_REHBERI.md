@@ -29,7 +29,7 @@ Render, kodu bir GitHub deposundan çekiyor.
 2. Terminalde:
 
 ```bash
-git remote add origin https://github.com/KULLANICI_ADIN/urun-analiz.git
+git remote add origin https://github.com/mburakzorba/urun-analiz.git
 git branch -M main
 git push -u origin main
 ```

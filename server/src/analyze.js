@@ -50,7 +50,7 @@ async function analyzeProductImage(imageBuffer, mimeType) {
 
   const response = await anthropic.messages.create({
     model: MODEL,
-    max_tokens: 2000,
+    max_tokens: 4096,
     system: SYSTEM_PROMPT,
     messages: [
       {
@@ -66,6 +66,9 @@ async function analyzeProductImage(imageBuffer, mimeType) {
     ],
   });
 
+  if (response.stop_reason === "max_tokens") {
+    console.warn("[analyze] Model yanıtı max_tokens sınırında kesildi (görsel analiz).");
+  }
   const parsed = extractJson(extractTextBlock(response));
   return { ...parsed, source: "ai" };
 }
@@ -92,11 +95,14 @@ async function analyzeKnownProduct(productInfo) {
 
   const response = await anthropic.messages.create({
     model: MODEL,
-    max_tokens: 2000,
+    max_tokens: 4096,
     system: KNOWN_PRODUCT_SYSTEM_PROMPT,
     messages: [{ role: "user", content: buildKnownProductUserPrompt(productInfo) }],
   });
 
+  if (response.stop_reason === "max_tokens") {
+    console.warn("[analyze] Model yanıtı max_tokens sınırında kesildi (barkod tabanlı analiz).");
+  }
   const parsed = extractJson(extractTextBlock(response));
   return { ...parsed, source: "ai+barcode" };
 }
