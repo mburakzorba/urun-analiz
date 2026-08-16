@@ -1,0 +1,19 @@
+{
+  "name": "urun-analiz-server",
+  "version": "1.0.0",
+  "description": "Ürün Analiz uygulaması için basit backend: fotoğrafı alır, Claude API (vision) ile analiz eder, yapılandırılmış JSON döner.",
+  "main": "src/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.68.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "multer": "^2.2.0"
+  },
+  "license": "ISC"
+}

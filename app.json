@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "urun-analiz",
+    "slug": "urun-analiz",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Ürün etiketini/içeriğini analiz etmek için kameraya erişim gerekiyor.",
+        "NSPhotoLibraryUsageDescription": "Galerinden ürün fotoğrafı seçebilmek için erişim gerekiyor."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["CAMERA", "READ_MEDIA_IMAGES"]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Ürün etiketini/içeriğini analiz etmek için kameraya erişim gerekiyor."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Galerinden ürün fotoğrafı seçebilmek için erişim gerekiyor."
+        }
+      ]
+    ]
+  }
+}

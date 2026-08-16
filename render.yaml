@@ -1,0 +1,23 @@
+# Render Blueprint — bu dosya sayesinde Render, backend'i (server/ klasörü)
+# nasıl deploy edeceğini otomatik anlıyor. Kullanımı için bkz. DEPLOY_REHBERI.md.
+#
+# Not: "free" plan, 15 dakika işlem yapılmazsa uykuya geçer ve dosya sistemi
+# her yeniden başlatmada sıfırlanır (yani server/data/product-cache.json
+# önbelleği sık sık kaybolur). Test için sorun değil; gerçek kullanıcıların
+# olduğu bir aşamada "starter" plana ve/veya kalıcı bir veritabanına geçmeyi
+# düşün (bkz. server/README.md).
+
+services:
+  - name: urun-analiz-backend
+    type: web
+    runtime: node
+    plan: free
+    region: frankfurt
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_MODEL
+        value: claude-sonnet-5
