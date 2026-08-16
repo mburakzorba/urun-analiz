@@ -5,6 +5,7 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
 import { colors, spacing, radius } from "../theme";
 import { AnalyzedIngredient, IngredientRisk } from "../types";
+import { effectivenessVerdict, healthVerdict, satisfactionVerdict } from "../utils/verdict";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Result">;
 
@@ -27,14 +28,11 @@ const sourceBadge: Record<string, { text: string; color: string }> = {
   cache: { text: "✓ Daha önce analiz edildi (önbellekten)", color: colors.accent },
 };
 
-function ScoreRing({ score, label }: { score: number; label: string }) {
-  const color = score >= 70 ? colors.primary : score >= 45 ? colors.warning : colors.danger;
+function VerdictCard({ title, verdict }: { title: string; verdict: { label: string; color: string } }) {
   return (
-    <View style={styles.scoreBox}>
-      <View style={[styles.scoreCircle, { borderColor: color }]}>
-        <Text style={[styles.scoreNumber, { color }]}>{score}</Text>
-      </View>
-      <Text style={styles.scoreLabel}>{label}</Text>
+    <View style={[styles.verdictCard, { borderColor: verdict.color }]}>
+      <Text style={styles.verdictTitle}>{title}</Text>
+      <Text style={[styles.verdictLabel, { color: verdict.color }]}>{verdict.label}</Text>
     </View>
   );
 }
@@ -80,9 +78,9 @@ export default function ResultScreen({ route, navigation }: Props) {
         </View>
 
         <View style={styles.scoresRow}>
-          <ScoreRing score={analysis.effectivenessScore} label="İşe Yarıyor mu?" />
-          <ScoreRing score={analysis.healthScore} label="Sağlık Skoru" />
-          <ScoreRing score={analysis.reviewSummary.averageSentiment} label="Kullanıcı Memnuniyeti" />
+          <VerdictCard title="İşe Yarıyor mu?" verdict={effectivenessVerdict(analysis.effectivenessScore)} />
+          <VerdictCard title="Sağlık" verdict={healthVerdict(analysis.healthScore)} />
+          <VerdictCard title="Kullanıcı Görüşü" verdict={satisfactionVerdict(analysis.reviewSummary.averageSentiment)} />
         </View>
 
         <Section title="Gerçekten İşe Yarıyor mu?">
@@ -184,18 +182,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   mockBadgeText: { color: colors.textMuted, fontSize: 11, fontWeight: "600" },
-  scoresRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: spacing.lg },
-  scoreBox: { alignItems: "center", flex: 1 },
-  scoreCircle: {
-    width: 66,
-    height: 66,
-    borderRadius: 33,
-    borderWidth: 3,
+  scoresRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: spacing.lg, gap: spacing.sm },
+  verdictCard: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    backgroundColor: colors.card,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: 6,
     alignItems: "center",
     justifyContent: "center",
+    minHeight: 66,
   },
-  scoreNumber: { fontSize: 20, fontWeight: "800" },
-  scoreLabel: { color: colors.textMuted, fontSize: 11, marginTop: 6, textAlign: "center" },
+  verdictTitle: { color: colors.textMuted, fontSize: 11, textAlign: "center" },
+  verdictLabel: { fontSize: 12, fontWeight: "800", textAlign: "center", marginTop: 4 },
   section: {
     backgroundColor: colors.card,
     borderRadius: radius.lg,

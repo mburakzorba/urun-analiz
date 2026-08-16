@@ -5,6 +5,7 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
 import { colors, spacing, radius } from "../theme";
 import { useHistory } from "../context/HistoryContext";
+import { shortHealthVerdict } from "../utils/verdict";
 
 type Props = NativeStackScreenProps<RootStackParamList, "History">;
 
@@ -44,8 +45,10 @@ export default function HistoryScreen({ navigation }: Props) {
               </Text>
               <Text style={styles.itemDate}>{new Date(item.createdAt).toLocaleString("tr-TR")}</Text>
             </View>
-            <View style={styles.scoreBadge}>
-              <Text style={styles.scoreBadgeText}>{item.healthScore}</Text>
+            <View style={[styles.scoreBadge, { borderColor: shortHealthVerdict(item.healthScore).color }]}>
+              <Text style={[styles.scoreBadgeText, { color: shortHealthVerdict(item.healthScore).color }]}>
+                {shortHealthVerdict(item.healthScore).label}
+              </Text>
             </View>
           </TouchableOpacity>
         )}
@@ -82,12 +85,13 @@ const styles = StyleSheet.create({
   itemTitle: { color: colors.text, fontSize: 14, fontWeight: "600" },
   itemDate: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
   scoreBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    borderRadius: radius.pill,
+    borderWidth: 1,
     backgroundColor: colors.cardAlt,
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
-  scoreBadgeText: { color: colors.primary, fontWeight: "700", fontSize: 13 },
+  scoreBadgeText: { fontWeight: "700", fontSize: 12 },
 });

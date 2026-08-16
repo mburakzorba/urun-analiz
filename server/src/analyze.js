@@ -1,5 +1,11 @@
 const Anthropic = require("@anthropic-ai/sdk");
-const { SYSTEM_PROMPT, USER_PROMPT, KNOWN_PRODUCT_SYSTEM_PROMPT, buildKnownProductUserPrompt } = require("./prompt");
+const {
+  SYSTEM_PROMPT,
+  USER_PROMPT,
+  USER_PROMPT_TWO_IMAGES,
+  KNOWN_PRODUCT_SYSTEM_PROMPT,
+  buildKnownProductUserPrompt,
+} = require("./prompt");
 const { getMockAnalysis } = require("./mockAnalysis");
 
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
@@ -34,11 +40,16 @@ function extractTextBlock(response) {
 }
 
 /**
- * imageBuffer: Buffer (yüklenen fotoğraf)
+ * imageBuffer: Buffer (yüklenen fotoğraf — tek fotoğraf akışında ürünün
+ *   önü/arkası her ikisi de olabilir; iki fotoğraf akışında bu ÖN yüzdür)
  * mimeType: örn. "image/jpeg"
+ * imageBackBuffer / backMimeType: opsiyonel — kullanıcı içerik listesinin
+ *   olduğu arka yüzü de çektiyse ikinci görsel buraya gelir. Verilirse AI'ye
+ *   iki görsel birden gönderilir ve içerik listesini bu ikinci görselden
+ *   okuması, ürünü ilk görselden (marka/ambalaj) teyit etmesi istenir.
  * Döner: ProductAnalysis şekline uygun obje (id/createdAt/imageUri olmadan)
  */
-async function analyzeProductImage(imageBuffer, mimeType) {
+async function analyzeProductImage(imageBuffer, mimeType, imageBackBuffer, backMimeType) {
   const anthropic = getClient();
 
   if (!anthropic) {
@@ -47,23 +58,29 @@ async function analyzeProductImage(imageBuffer, mimeType) {
   }
 
   const base64Image = imageBuffer.toString("base64");
+  const hasBackImage = Boolean(imageBackBuffer && imageBackBuffer.length > 0);
+
+  const content = [
+    {
+      type: "image",
+      source: { type: "base64", media_type: mimeType, data: base64Image },
+    },
+  ];
+
+  if (hasBackImage) {
+    content.push({
+      type: "image",
+      source: { type: "base64", media_type: backMimeType || "image/jpeg", data: imageBackBuffer.toString("base64") },
+    });
+  }
+
+  content.push({ type: "text", text: hasBackImage ? USER_PROMPT_TWO_IMAGES : USER_PROMPT });
 
   const response = await anthropic.messages.create({
     model: MODEL,
     max_tokens: 4096,
     system: SYSTEM_PROMPT,
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "image",
-            source: { type: "base64", media_type: mimeType, data: base64Image },
-          },
-          { type: "text", text: USER_PROMPT },
-        ],
-      },
-    ],
+    messages: [{ role: "user", content }],
   });
 
   if (response.stop_reason === "max_tokens") {

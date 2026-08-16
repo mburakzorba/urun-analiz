@@ -27,7 +27,7 @@ const STEPS_PHOTO_ONLY = [
 ];
 
 export default function AnalyzingScreen({ route, navigation }: Props) {
-  const { imageUri, barcode } = route.params;
+  const { imageUri, backImageUri, barcode } = route.params;
   const { addAnalysis } = useHistory();
   const { registerScan } = useSubscription();
   const [stepIndex, setStepIndex] = useState(0);
@@ -43,7 +43,7 @@ export default function AnalyzingScreen({ route, navigation }: Props) {
     let cancelled = false;
     (async () => {
       try {
-        const analysis = await analyzeProductPhoto(imageUri, barcode);
+        const analysis = await analyzeProductPhoto(imageUri, barcode, backImageUri);
         if (cancelled) return;
         await addAnalysis(analysis);
         await registerScan();

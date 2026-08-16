@@ -13,7 +13,11 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL;
  * - Backend tanımlı değilse veya istek başarısız olursa, uygulamanın demo/test
  *   sırasında kesintisiz çalışması için gerçekçi bir mock analiz döner.
  */
-export async function analyzeProductPhoto(imageUri: string, barcode?: string): Promise<ProductAnalysis> {
+export async function analyzeProductPhoto(
+  imageUri: string,
+  barcode?: string,
+  backImageUri?: string
+): Promise<ProductAnalysis> {
   if (!API_URL) {
     console.warn(
       "[analyzeProduct] EXPO_PUBLIC_API_URL tanımlı değil, mock analiz kullanılıyor. Gerçek AI analizi için backend/README.md dosyasına bakın."
@@ -29,6 +33,16 @@ export async function analyzeProductPhoto(imageUri: string, barcode?: string): P
       name: "product.jpg",
       type: "image/jpeg",
     } as unknown as Blob);
+    if (backImageUri) {
+      // Kullanıcı ön yüzden sonra içerik listesinin olduğu arka yüzü de
+      // çektiyse, AI'nin tahmin yürütmek yerine gerçek listeden okuyabilmesi
+      // için ikinci görseli de gönderiyoruz.
+      formData.append("imageBack", {
+        uri: backImageUri,
+        name: "product-back.jpg",
+        type: "image/jpeg",
+      } as unknown as Blob);
+    }
     if (barcode) {
       formData.append("barcode", barcode);
     }

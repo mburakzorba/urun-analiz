@@ -6,6 +6,7 @@ import { RootStackParamList } from "../navigation/types";
 import { colors, spacing, radius } from "../theme";
 import { useSubscription } from "../context/SubscriptionContext";
 import { useHistory } from "../context/HistoryContext";
+import { shortHealthVerdict } from "../utils/verdict";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
@@ -77,8 +78,10 @@ export default function HomeScreen({ navigation }: Props) {
                     {new Date(item.createdAt).toLocaleDateString("tr-TR")}
                   </Text>
                 </View>
-                <View style={styles.scoreBadge}>
-                  <Text style={styles.scoreBadgeText}>{item.healthScore}</Text>
+                <View style={[styles.scoreBadge, { borderColor: shortHealthVerdict(item.healthScore).color }]}>
+                  <Text style={[styles.scoreBadgeText, { color: shortHealthVerdict(item.healthScore).color }]}>
+                    {shortHealthVerdict(item.healthScore).label}
+                  </Text>
                 </View>
               </TouchableOpacity>
             )}
@@ -145,12 +148,13 @@ const styles = StyleSheet.create({
   historyItemTitle: { color: colors.text, fontSize: 15, fontWeight: "600" },
   historyItemDate: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
   scoreBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    borderRadius: radius.pill,
+    borderWidth: 1,
     backgroundColor: colors.cardAlt,
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
-  scoreBadgeText: { color: colors.primary, fontWeight: "700" },
+  scoreBadgeText: { fontWeight: "700", fontSize: 12 },
 });

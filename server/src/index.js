@@ -15,8 +15,14 @@ const PORT = process.env.PORT || 3000;
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 8 * 1024 * 1024 }, // 8MB
+  limits: { fileSize: 8 * 1024 * 1024 }, // 8MB (görsel başına)
 });
+// "image" (ön yüz/tek fotoğraf) zorunlu, "imageBack" (içerik listesi/arka
+// yüz) opsiyonel — kullanıcı ScanScreen'de "Arka Yüzü de Çek" derse gelir.
+const uploadFields = upload.fields([
+  { name: "image", maxCount: 1 },
+  { name: "imageBack", maxCount: 1 },
+]);
 
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
@@ -25,7 +31,7 @@ app.get("/health", (_req, res) => {
   res.json({ ok: true, hasApiKey: Boolean(process.env.ANTHROPIC_API_KEY) });
 });
 
-app.post("/analyze", upload.single("image"), async (req, res) => {
+app.post("/analyze", uploadFields, async (req, res) => {
   try {
     const barcode = (req.body && req.body.barcode ? String(req.body.barcode) : "").trim();
 
@@ -59,14 +65,21 @@ app.post("/analyze", upload.single("image"), async (req, res) => {
     }
 
     // 3) Barkod yok, ya da barkod bulunamadı: mevcut fotoğraf+AI akışı.
-    if (!req.file) {
+    const imageFile = req.files?.image?.[0];
+    const imageBackFile = req.files?.imageBack?.[0];
+    if (!imageFile) {
       return res.status(400).json({ error: "Fotoğraf bulunamadı ('image' alanı gerekli)" });
     }
 
-    const mimeType = req.file.mimetype || "image/jpeg";
+    const mimeType = imageFile.mimetype || "image/jpeg";
     let result;
     try {
-      result = await analyzeProductImage(req.file.buffer, mimeType);
+      result = await analyzeProductImage(
+        imageFile.buffer,
+        mimeType,
+        imageBackFile?.buffer,
+        imageBackFile?.mimetype || "image/jpeg"
+      );
     } catch (err) {
       console.error("[/analyze] AI analizi başarısız, mock veri dönülüyor:", err.message);
       result = getMockAnalysis();

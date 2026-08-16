@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
@@ -13,23 +13,55 @@ type Props = NativeStackScreenProps<RootStackParamList, "Scan">;
 // burada QR kod değil, ürün barkodu arıyoruz).
 const PRODUCT_BARCODE_TYPES = ["ean13", "ean8", "upc_a", "upc_e"] as const;
 
+// idle: normal tarama modu (barkod dinliyor, ilk/tek fotoğrafı bekliyor)
+// awaitingBackChoice: ön yüz çekildi, kullanıcıya arka yüzü (içerik listesi)
+//   de çekmek isteyip istemediği soruluyor
+// capturingBack: kullanıcı "arka yüzü çek" dedi, bir sonraki deklanşör
+//   basışı arka yüz/içerik listesi fotoğrafı olarak kaydedilecek
+type Stage = "idle" | "awaitingBackChoice" | "capturingBack";
+
 export default function ScanScreen({ navigation }: Props) {
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
   const [isCapturing, setIsCapturing] = useState(false);
   const [detectedBarcode, setDetectedBarcode] = useState<string | null>(null);
+  const [torchOn, setTorchOn] = useState(false);
+  const [stage, setStage] = useState<Stage>("idle");
+  const [frontUri, setFrontUri] = useState<string | null>(null);
   const barcodeLockRef = useRef(false);
 
-  const goToAnalyzing = (imageUri: string, barcode?: string) => {
-    navigation.replace("Analyzing", { imageUri, barcode });
+  const goToAnalyzing = (imageUri: string, backImageUri?: string, barcode?: string) => {
+    navigation.replace("Analyzing", { imageUri, backImageUri, barcode });
   };
 
-  const takePhoto = async (barcode?: string) => {
+  const takePhoto = async (opts?: { barcode?: string; isBackShot?: boolean }) => {
     if (!cameraRef.current || isCapturing) return;
     try {
       setIsCapturing(true);
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.7 });
-      if (photo?.uri) goToAnalyzing(photo.uri, barcode);
+      // quality 0.9: içerik listesi gibi küçük yazıları AI'nin okuyabilmesi
+      // için sıkıştırmayı olabildiğince az tutuyoruz (0.7 -> 0.9).
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.9 });
+      if (!photo?.uri) return;
+
+      if (opts?.barcode) {
+        // Barkod otomatik algılandığında tek fotoğraf yeterli — barkod zaten
+        // ürünü güçlü şekilde tanımlıyor, iki adımlı akışa gerek yok.
+        goToAnalyzing(photo.uri, undefined, opts.barcode);
+        return;
+      }
+
+      if (opts?.isBackShot) {
+        // İki adımlı akışın 2. fotoğrafı: içerik listesinin olduğu arka yüz.
+        goToAnalyzing(frontUri as string, photo.uri);
+        return;
+      }
+
+      // İlk fotoğraf (genelde ön yüz). Hemen analiz etmek yerine kullanıcıya
+      // arka yüzü/içerik listesini de çekmesini öneriyoruz: AI'nin ön yüzden
+      // tahmin yürütmesindense gerçek içerik listesinden okuması çok daha
+      // doğru sonuç veriyor.
+      setFrontUri(photo.uri);
+      setStage("awaitingBackChoice");
     } catch (e) {
       Alert.alert("Hata", "Fotoğraf çekilemedi, tekrar dener misin?");
     } finally {
@@ -40,24 +72,36 @@ export default function ScanScreen({ navigation }: Props) {
   // Barkod algılandığında: kısa bir onay gösterip otomatik fotoğraf çekip
   // devam ediyoruz. barcodeLockRef, kamera görüş alanında barkod dururken
   // onBarcodeScanned'in saniyede defalarca tetiklenmesini engelliyor.
+  // Gecikmeyi 500ms -> 950ms çıkardık: barkod algılandığı anda kamera genelde
+  // henüz netlenmemiş oluyor (kullanıcı telefonu hâlâ konumluyor), çok hızlı
+  // çekim yapınca bulanık fotoğraf çıkıyor ve AI etiketi okuyamıyordu.
   const handleBarcodeScanned = useCallback((result: BarcodeScanningResult) => {
     if (barcodeLockRef.current || isCapturing) return;
     barcodeLockRef.current = true;
     setDetectedBarcode(result.data);
     setTimeout(() => {
-      takePhoto(result.data);
-    }, 500);
+      takePhoto({ barcode: result.data });
+    }, 950);
   }, [isCapturing]);
 
   const pickFromGallery = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
-      quality: 0.7,
+      quality: 0.9,
     });
     if (!result.canceled && result.assets?.[0]?.uri) {
       // Galeriden seçilen fotoğrafta barkod algılamıyoruz, direkt AI analizine düşer.
       goToAnalyzing(result.assets[0].uri);
     }
+  };
+
+  const skipBackShot = () => {
+    if (!frontUri) return;
+    goToAnalyzing(frontUri);
+  };
+
+  const startBackShot = () => {
+    setStage("capturingBack");
   };
 
   if (!permission) {
@@ -88,31 +132,82 @@ export default function ScanScreen({ navigation }: Props) {
         ref={cameraRef}
         style={StyleSheet.absoluteFill}
         facing="back"
+        autofocus="on"
+        enableTorch={torchOn}
+        // Bazı iPhone modellerinde (ultra-geniş + geniş + tele üç lensli)
+        // zoom belirtilmeyince kamera varsayılan olarak ultra-geniş (0.5x)
+        // lensi seçebiliyor; bu lens daha çok bozulma/daha az netlik verir ve
+        // yakın çekimde (etiket okuma) belirgin şekilde bulanıklaşıyordu.
+        // Standart 1x geniş açı lensini açıkça zorunlu kılıyoruz.
+        selectedLens="builtInWideAngleCamera"
+        zoom={0}
         barcodeScannerSettings={{ barcodeTypes: [...PRODUCT_BARCODE_TYPES] }}
-        onBarcodeScanned={detectedBarcode ? undefined : handleBarcodeScanned}
+        onBarcodeScanned={stage === "idle" && !detectedBarcode ? handleBarcodeScanned : undefined}
       />
       <SafeAreaView style={styles.overlay} pointerEvents="box-none">
         <View style={styles.topBar}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeBtn}>
-            <Text style={styles.closeBtnText}>✕</Text>
-          </TouchableOpacity>
+          <View style={styles.topRow}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeBtn}>
+              <Text style={styles.closeBtnText}>✕</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setTorchOn((t) => !t)}
+              style={[styles.closeBtn, torchOn && styles.torchBtnActive]}
+            >
+              <Text style={styles.closeBtnText}>{torchOn ? "🔦" : "💡"}</Text>
+            </TouchableOpacity>
+          </View>
           {detectedBarcode ? (
             <View style={styles.barcodeBanner}>
-              <Text style={styles.barcodeBannerText}>✓ Barkod algılandı — otomatik taranıyor...</Text>
+              <Text style={styles.barcodeBannerText}>✓ Barkod algılandı — telefonu sabit tutun, taranıyor...</Text>
+            </View>
+          ) : stage === "capturingBack" ? (
+            <View style={styles.barcodeBanner}>
+              <Text style={styles.barcodeBannerText}>
+                Şimdi İÇERİK LİSTESİ yazan arka yüzü çerçeve içine al ve çek
+              </Text>
             </View>
           ) : (
             <Text style={styles.hint}>
               Ürünün barkodunu göster (otomatik algılanır) ya da içerik listesini çerçeve içine alıp
-              fotoğraf çek
+              fotoğraf çek. Net görüntü için: iyi ışıkta, telefonu sabit tutup ürüne 10-15 cm mesafeden çek —
+              çok yakınsan kamera netleyemez. Işık azsa 💡 düğmesiyle feneri aç.
             </Text>
           )}
         </View>
+
+        {stage === "awaitingBackChoice" && frontUri && (
+          <View style={styles.backChoiceBox} pointerEvents="auto">
+            <View style={styles.backChoiceRow}>
+              <Image source={{ uri: frontUri }} style={styles.backChoiceThumb} />
+              <View style={{ flex: 1, marginLeft: spacing.sm }}>
+                <Text style={styles.backChoiceTitle}>✓ Bu fotoğraf kaydedildi</Text>
+                <Text style={styles.backChoiceText}>
+                  Daha doğru bir analiz için İÇERİK LİSTESİNİN olduğu arka yüzü de çekmeni öneririz —
+                  AI tahmin yürütmek yerine gerçek listeyi okur.
+                </Text>
+              </View>
+            </View>
+            <View style={styles.backChoiceBtnRow}>
+              <TouchableOpacity style={styles.backChoiceSkipBtn} onPress={skipBackShot}>
+                <Text style={styles.backChoiceSkipText}>Bu kadarı yeterli</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.backChoicePrimaryBtn} onPress={startBackShot}>
+                <Text style={styles.backChoicePrimaryText}>Arka Yüzü de Çek</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         <View style={styles.bottomBar}>
           <TouchableOpacity onPress={pickFromGallery} style={styles.galleryBtn}>
             <Text style={styles.galleryBtnText}>Galeri</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => takePhoto()} style={styles.shutterBtn} disabled={isCapturing}>
+          <TouchableOpacity
+            onPress={() => takePhoto(stage === "capturingBack" ? { isBackShot: true } : undefined)}
+            style={styles.shutterBtn}
+            disabled={isCapturing || stage === "awaitingBackChoice"}
+          >
             <View style={styles.shutterInner} />
           </TouchableOpacity>
           <View style={{ width: 64 }} />
@@ -126,6 +221,11 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   overlay: { flex: 1, justifyContent: "space-between" },
   topBar: { padding: spacing.lg },
+  topRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: spacing.md,
+  },
   closeBtn: {
     width: 36,
     height: 36,
@@ -133,8 +233,8 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.5)",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: spacing.md,
   },
+  torchBtnActive: { backgroundColor: colors.primary },
   closeBtnText: { color: "#fff", fontSize: 16 },
   hint: {
     color: "#fff",
@@ -149,6 +249,37 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
   },
   barcodeBannerText: { color: "#0F1115", fontSize: 13, fontWeight: "700" },
+  backChoiceBox: {
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    backgroundColor: "rgba(15,17,21,0.95)",
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  backChoiceRow: { flexDirection: "row", alignItems: "flex-start" },
+  backChoiceThumb: { width: 56, height: 56, borderRadius: radius.sm },
+  backChoiceTitle: { color: colors.text, fontSize: 13, fontWeight: "700" },
+  backChoiceText: { color: colors.textMuted, fontSize: 12, marginTop: 4, lineHeight: 16 },
+  backChoiceBtnRow: { flexDirection: "row", marginTop: spacing.sm, gap: spacing.sm },
+  backChoiceSkipBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+  },
+  backChoiceSkipText: { color: colors.textMuted, fontSize: 13, fontWeight: "600" },
+  backChoicePrimaryBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+  },
+  backChoicePrimaryText: { color: "#0F1115", fontSize: 13, fontWeight: "700" },
   bottomBar: {
     flexDirection: "row",
     alignItems: "center",
