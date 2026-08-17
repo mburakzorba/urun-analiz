@@ -211,7 +211,7 @@ async function analyzeProductImage(imageBuffer, mimeType, imageBackBuffer, backM
 
   const response = await anthropic.messages.create({
     model: MODEL,
-    max_tokens: 16000,
+    max_tokens: 32000,
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content }],
   });
@@ -245,7 +245,7 @@ async function analyzeKnownProduct(productInfo) {
 
   const response = await anthropic.messages.create({
     model: MODEL,
-    max_tokens: 16000,
+    max_tokens: 32000,
     system: KNOWN_PRODUCT_SYSTEM_PROMPT,
     messages: [{ role: "user", content: buildKnownProductUserPrompt(productInfo) }],
   });

@@ -33,7 +33,10 @@ const MAIN_LENS = "builtInWideAngleCamera";
 //   de çekmek isteyip istemediği soruluyor
 // capturingBack: kullanıcı "arka yüzü çek" dedi, bir sonraki deklanşör
 //   basışı arka yüz/içerik listesi fotoğrafı olarak kaydedilecek
-type Stage = "idle" | "awaitingBackChoice" | "capturingBack";
+// backPreview: arka yüz çekildi, kullanıcıya büyük halde gösteriliyor —
+//   yazılar okunuyor mu diye kendisi kontrol edip onaylıyor ya da tekrar
+//   çekiyor. Bulanık bir fotoğrafın analize gitmesini bu adım engelliyor.
+type Stage = "idle" | "awaitingBackChoice" | "capturingBack" | "backPreview";
 
 export default function ScanScreen({ navigation }: Props) {
   const [permission, requestPermission] = useCameraPermissions();
@@ -43,6 +46,7 @@ export default function ScanScreen({ navigation }: Props) {
   const [torchOn, setTorchOn] = useState(false);
   const [stage, setStage] = useState<Stage>("idle");
   const [frontUri, setFrontUri] = useState<string | null>(null);
+  const [backUri, setBackUri] = useState<string | null>(null);
   const [selectedLens, setSelectedLens] = useState<string | undefined>(undefined);
   const barcodeLockRef = useRef(false);
 
@@ -84,7 +88,10 @@ export default function ScanScreen({ navigation }: Props) {
 
       if (opts?.isBackShot) {
         // İki adımlı akışın 2. fotoğrafı: içerik listesinin olduğu arka yüz.
-        goToAnalyzing(frontUri as string, photo.uri);
+        // Analize göndermeden önce kullanıcıya gösterip onaylatıyoruz —
+        // yazılar okunmuyorsa tekrar çekebilsin.
+        setBackUri(photo.uri);
+        setStage("backPreview");
         return;
       }
 
@@ -135,6 +142,16 @@ export default function ScanScreen({ navigation }: Props) {
     setStage("capturingBack");
   };
 
+  const confirmBackShot = () => {
+    if (!frontUri || !backUri) return;
+    goToAnalyzing(frontUri, backUri);
+  };
+
+  const retakeBackShot = () => {
+    setBackUri(null);
+    setStage("capturingBack");
+  };
+
   if (!permission) {
     return <View style={styles.safe} />;
   }
@@ -152,6 +169,31 @@ export default function ScanScreen({ navigation }: Props) {
           <TouchableOpacity style={styles.galleryLinkBtn} onPress={pickFromGallery}>
             <Text style={styles.galleryLinkText}>veya galeriden fotoğraf seç</Text>
           </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Arka yüz fotoğrafı önizlemesi: kullanıcı yazıların okunaklı olduğunu
+  // kendi gözüyle doğrulamadan analiz başlamıyor.
+  if (stage === "backPreview" && backUri) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.previewContainer}>
+          <Text style={styles.previewTitle}>İçerik listesi okunuyor mu?</Text>
+          <Text style={styles.previewSubtitle}>
+            Aşağıdaki fotoğrafta bileşen isimlerini sen okuyabiliyorsan AI de okuyabilir.
+            Yazılar bulanıksa tekrar çek — bu, sonucun doğruluğunu belirleyen en önemli adım.
+          </Text>
+          <Image source={{ uri: backUri }} style={styles.previewImage} resizeMode="contain" />
+          <View style={styles.previewBtnRow}>
+            <TouchableOpacity style={styles.previewRetakeBtn} onPress={retakeBackShot}>
+              <Text style={styles.previewRetakeText}>Tekrar Çek</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.previewConfirmBtn} onPress={confirmBackShot}>
+              <Text style={styles.previewConfirmText}>Okunuyor, Analiz Et</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -323,6 +365,33 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   backChoicePrimaryText: { color: "#0F1115", fontSize: 13, fontWeight: "700" },
+  previewContainer: { flex: 1, padding: spacing.lg },
+  previewTitle: { color: colors.text, fontSize: 18, fontWeight: "800", marginBottom: spacing.xs },
+  previewSubtitle: { color: colors.textMuted, fontSize: 13, lineHeight: 18, marginBottom: spacing.md },
+  previewImage: {
+    flex: 1,
+    width: "100%",
+    borderRadius: radius.md,
+    backgroundColor: colors.card,
+  },
+  previewBtnRow: { flexDirection: "row", marginTop: spacing.md, gap: spacing.sm },
+  previewRetakeBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+  },
+  previewRetakeText: { color: colors.text, fontSize: 14, fontWeight: "700" },
+  previewConfirmBtn: {
+    flex: 1.4,
+    paddingVertical: 14,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+  },
+  previewConfirmText: { color: "#0F1115", fontSize: 14, fontWeight: "700" },
   bottomBar: {
     flexDirection: "row",
     alignItems: "center",

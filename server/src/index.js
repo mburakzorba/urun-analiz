@@ -13,6 +13,12 @@ const { getCachedProduct, saveCachedProduct } = require("./productCache");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Deploy'un gerçekten geçtiğini anlamak için sürüm etiketi. Kodda bir
+// değişiklik yapıp Render'a gönderdikten sonra tarayıcıda /health adresine
+// bakınca burada yazan değeri görüyorsan yeni kod canlıdır. Görmüyorsan
+// deploy tamamlanmamıştır (ya da hâlâ sürüyordur).
+const APP_VERSION = "2026-08-17-tam-icerik-listesi";
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 8 * 1024 * 1024 }, // 8MB (görsel başına)
@@ -28,7 +34,7 @@ app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 
 app.get("/health", (_req, res) => {
-  res.json({ ok: true, hasApiKey: Boolean(process.env.ANTHROPIC_API_KEY) });
+  res.json({ ok: true, hasApiKey: Boolean(process.env.ANTHROPIC_API_KEY), version: APP_VERSION });
 });
 
 app.post("/analyze", uploadFields, async (req, res) => {
@@ -98,7 +104,7 @@ app.post("/analyze", uploadFields, async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Ürün Analiz backend ${PORT} portunda çalışıyor.`);
+  console.log(`Ürün Analiz backend ${PORT} portunda çalışıyor. Sürüm: ${APP_VERSION}`);
   console.log(
     process.env.ANTHROPIC_API_KEY
       ? "AI modu aktif (ANTHROPIC_API_KEY tanımlı)."

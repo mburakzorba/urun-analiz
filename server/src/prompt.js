@@ -20,11 +20,19 @@ const JSON_SCHEMA_BLOCK = `JSON şeması:
   "disclaimer": string
 }
 
-UZUNLUK KURALLARI — bunlara uymazsan yanıt yarıda kesilir ve sonuç kullanılamaz.
-Kısa ve öz yaz, dolgu cümle kurma:
-- "ingredients": EN FAZLA 10 madde. Etikette daha fazla bileşen varsa hepsini yazma;
-  en riskli + en faydalı + en karakteristik 10 tanesini seç. Su, tuz gibi nötr dolgu
-  bileşenlerini atla. Her "explanation" EN FAZLA 15 kelime olsun.
+"ingredients" İÇİN EN ÖNEMLİ KURAL — TAM LİSTE İSTİYORUZ:
+Etikette/içerik listesinde okuyabildiğin HER BİLEŞENİ, etiketteki sırasıyla, TEK TEK yaz.
+- Bileşen sayısını sınırlama — etikette 30 bileşen varsa 30'unu da yaz.
+- Bileşenleri BİRLEŞTİRME. "Parfum (Benzyl Alcohol, Geraniol vb.)" gibi tek satırda
+  toplama; her biri ayrı bir madde olmalı (Parfum ayrı, Benzyl Alcohol ayrı, Geraniol ayrı).
+- Su (Aqua), gliserin gibi nötr/sıradan bileşenleri de ATLAMA — kullanıcı tam listeyi görmek istiyor.
+- İsimleri etiketteki INCI yazımıyla ver.
+- Etiketin bir kısmı okunamıyorsa, okuyabildiklerini yaz ve okunamayan kısım olduğunu
+  effectivenessSummary içinde belirt; okuyamadığın bileşeni UYDURMA.
+Listeyi uzun tutabilmen için açıklamaları çok kısa yaz: her "explanation" EN FAZLA 12 kelime,
+tek cümle, sıradan bileşenlerde 3-5 kelime yeter (örn. "Taşıyıcı, güvenli.").
+
+DİĞER UZUNLUK KURALLARI — bunlara uymazsan yanıt yarıda kesilir:
 - "effectivenessSummary": EN FAZLA 90 kelime.
 - "positiveHighlights": tam 3 madde, her biri en fazla 15 kelime.
 - "negativeHighlights": tam 3 madde, her biri en fazla 15 kelime.
@@ -96,9 +104,16 @@ const USER_PROMPT_TWO_IMAGES = `Sana bu ürünün İKİ fotoğrafı verildi:
 
 Ürün adını ve markasını 1. görselden teyit et. İçerik/bileşen listesini MUTLAKA
 2. görselden, gerçekten yazan metni okuyarak çıkar — tahmin yürütme, bu görsel
-zaten elinde. 2. görseldeki metin kısmen bulanık/kesikse okuyabildiğin kısmı
-kullan ve okunamayan kısım için bunu açıkça belirt (uydurma). Yukarıdaki JSON
-şemasına uygun şekilde yanıt ver.`;
+zaten elinde.
+
+2. görseldeki içerik listesini BAŞTAN SONA, virgül virgül takip ederek oku ve
+gördüğün HER bileşeni ayrı bir madde olarak yaz. Listeyi kısaltma, özetleme,
+bileşenleri gruplama. Küçük punto/soluk basılmış kısımları da dikkatle incele —
+içerik listeleri genelde en küçük yazıyla basılır ve asıl istenen bilgi oradadır.
+Metin kısmen bulanık/kesikse okuyabildiğin kısmı yaz, okunamayanı uydurma ve
+okunamayan bir bölüm olduğunu effectivenessSummary içinde belirt.
+
+Yukarıdaki JSON şemasına uygun şekilde yanıt ver.`;
 
 // --- Akış 2: Barkodla Open Beauty Facts'ten doğrulanmış ürün bilgisi var ---
 // Bu durumda modele fotoğraf göndermiyoruz (daha ucuz + daha güvenilir),
