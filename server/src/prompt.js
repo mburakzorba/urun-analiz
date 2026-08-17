@@ -10,29 +10,34 @@ const JSON_SCHEMA_BLOCK = `JSON şeması:
   "effectivenessSummary": string,
   "healthScore": number (0-100),
   "ingredients": [ { "name": string, "risk": "iyi"|"orta"|"riskli", "explanation": string } ],
-  "harmfulIngredients": [ { "name": string, "risk": "orta"|"riskli", "explanation": string } ],
-  "beneficialIngredients": [ { "name": string, "risk": "iyi", "explanation": string } ],
   "reviewSummary": {
     "averageSentiment": number (0-100),
     "totalMentionsAnalyzed": number,
-    "positiveHighlights": [string] (4-5 madde),
-    "negativeHighlights": [string] (4-5 madde),
-    "sampleQuotes": [ { "text": string, "sentiment": "olumlu"|"olumsuz"|"nötr" } ] (5-6 örnek)
+    "positiveHighlights": [string],
+    "negativeHighlights": [string],
+    "sampleQuotes": [ { "text": string, "sentiment": "olumlu"|"olumsuz"|"nötr" } ]
   },
   "disclaimer": string
 }
 
-reviewSummary için önemli kurallar:
-- positiveHighlights ve negativeHighlights'ı genel geçer tek cümlelerle geçiştirme;
-  her maddede kullanıcıların SOMUT OLARAK neyi beğendiğini/beğenmediğini belirt
-  (örn. "Kokusu hafif ve kalıcı değil, hassas burun sahipleri de rahat kullanıyor"
-  gibi, sadece "kokusu güzel" değil). Farklı temaları kapsa: etki/sonuç, doku/his,
-  koku, fiyat/performans, cilt tipi uyumu, yan etki/tahriş, ambalaj/kullanım kolaylığı
-  gibi kategorilerden en az 3-4 farklı temaya değin, tekrar etme.
-- sampleQuotes'ta hem olumlu hem olumsuz hem nötr yorumlardan örnekler ver, birbirinden
-  farklı endişe/övgü noktalarını yansıtsın (aynı şeyi tekrar eden alıntılar verme).
-- Bu yorumlar/temalar elindeki genel bilgiye dayanarak makul bir tahmindir, kesin/uydurma
-  istatistik değildir — ama yine de spesifik ve okunası olmalı, boş klişelerden kaçın.
+UZUNLUK KURALLARI — bunlara uymazsan yanıt yarıda kesilir ve sonuç kullanılamaz.
+Kısa ve öz yaz, dolgu cümle kurma:
+- "ingredients": EN FAZLA 10 madde. Etikette daha fazla bileşen varsa hepsini yazma;
+  en riskli + en faydalı + en karakteristik 10 tanesini seç. Su, tuz gibi nötr dolgu
+  bileşenlerini atla. Her "explanation" EN FAZLA 15 kelime olsun.
+- "effectivenessSummary": EN FAZLA 90 kelime.
+- "positiveHighlights": tam 3 madde, her biri en fazla 15 kelime.
+- "negativeHighlights": tam 3 madde, her biri en fazla 15 kelime.
+- "sampleQuotes": tam 3 örnek (1 olumlu, 1 olumsuz, 1 nötr), her biri en fazla 20 kelime.
+- "disclaimer": EN FAZLA 30 kelime.
+
+reviewSummary için içerik kuralları:
+- positiveHighlights/negativeHighlights'ta kullanıcıların SOMUT OLARAK neyi beğendiğini/
+  beğenmediğini belirt ("kokusu güzel" değil, "kokusu hafif, hassas ciltte rahatsız etmiyor" gibi).
+  Üç madde birbirinden farklı temalara değinsin (etki/sonuç, doku-koku, fiyat/performans,
+  yan etki/tahriş gibi) — aynı şeyi tekrar etme.
+- sampleQuotes birbirinden farklı endişe/övgü noktalarını yansıtsın.
+- Bu yorumlar elindeki genel bilgiye dayanan makul bir tahmindir, uydurma istatistik verme.
 
 Tüm metinleri TÜRKÇE yaz.`;
 
@@ -56,9 +61,8 @@ BASILI DEĞİLSE, bunun için değerlendirmeyi "belirlenemedi" diye geçiştirme
    fotoğraftaki net bir içerik listesinden değil, genel ürün bilgisinden türetildiğini AÇIKÇA
    belirt (örn. "Bu ürünün içerik listesi fotoğrafta net görünmüyor; ancak [ürün adı] olarak
    tanımlandı, bu değerlendirme ürünün bilinen/tipik formülasyonuna dayanmaktadır.").
-   ingredients/harmfulIngredients/beneficialIngredients alanlarını da bu ürün ailesi için
-   TİPİK bilinen bileşenlerle doldur, her birinin açıklamasında bunun tahmini/genel bilgiye
-   dayandığını ima et.
+   "ingredients" alanını da bu ürün ailesi için TİPİK bilinen bileşenlerle doldur, her birinin
+   açıklamasında bunun tahmini/genel bilgiye dayandığını ima et.
 3. Ürünü hiçbir şekilde tanıyamıyorsan (bilinmeyen/çok küçük bir marka, hiçbir metin/logo
    okunamıyor) ancak bu durumda "Belirlenemedi" yaklaşımını kullan ve nedenini açıkla.
 Yani "Belirlenemedi" SON ÇARE olmalı, sadece gerçekten hem içerik listesi hem de ürün kimliği

@@ -18,6 +18,77 @@ function getClient() {
 }
 
 /**
+ * Model yanıtı max_tokens sınırına takılıp JSON'un ortasında kesildiğinde
+ * (örn. bir string'in ya da dizinin tam bitmemesi), elden geldiğince
+ * kurtarma yapar: açık kalan string'i kapatır, yarım kalan son elemanı atar,
+ * açık kalan {/[ parantezlerini doğru sırayla kapatır. Böylece max_tokens'a
+ * takılan bir cevaptan bile eksik ama GEÇERLİ bir sonuç çıkarabiliyoruz —
+ * tamamen mock'a düşmek yerine (mock'a düşmek, kullanıcının hep aynı "örnek
+ * analiz"i görmesine yol açıyordu).
+ */
+function repairTruncatedJson(text) {
+  const stack = [];
+  let inString = false;
+  let escape = false;
+  let lastSafeCut = -1; // en son tamamlanmış eleman/alanın hemen sonrası (bir virgül)
+  let lastSafeStack = null; // o an açık olan {/[ yığınının anlık kopyası
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (ch === "\\" && inString) {
+      escape = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (ch === "{" || ch === "[") stack.push(ch);
+    else if (ch === "}" || ch === "]") stack.pop();
+    else if (ch === "," && stack.length > 0) {
+      lastSafeCut = i;
+      lastSafeStack = stack.slice(); // ÖNEMLİ: bu andaki yığın durumunun kopyası
+    }
+  }
+
+  if (stack.length === 0) return null; // zaten dengeli — sorun kesilme değil, başka bir şey
+
+  // Kesildiği an bir string'in ortasındaysak ya da tam bir elemanın (sayı,
+  // obje, dizi) ortasındaysak, son "güvenli" virgüle geri dönüyoruz. Kapanış
+  // parantezlerini de O ANDAKİ yığın durumuna göre hesaplamak gerekiyor —
+  // metnin sonundaki yığın durumu değil, çünkü kesme noktasından sonra
+  // (attığımız kısımda) başka parantezler açılmış olabilir.
+  let cut, stackAtCut;
+  if (!inString && lastSafeCut === -1) {
+    // Ne string ortasındayız ne de daha önce güvenli bir virgül gördük
+    // (örn. ilk alanın ortasında kesilmiş) — kurtaracak bir şey yok.
+    return null;
+  } else if (inString || lastSafeCut !== -1) {
+    // Varsayılan: en son güvenli virgüle geri dön (en sağlam seçenek).
+    cut = lastSafeCut;
+    stackAtCut = lastSafeStack;
+  }
+  if (cut === -1 || !stackAtCut) return null;
+
+  const truncated = text.slice(0, cut).replace(/,\s*$/, "");
+  let closing = "";
+  for (let i = stackAtCut.length - 1; i >= 0; i--) {
+    closing += stackAtCut[i] === "{" ? "}" : "]";
+  }
+
+  try {
+    return JSON.parse(truncated + closing);
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
  * Bir JSON string'i, model bazen kod bloğu ya da ekstra metin eklese bile
  * güvenli şekilde çıkarmaya çalışır.
  */
@@ -28,9 +99,71 @@ function extractJson(text) {
   } catch (_) {
     // ```json ... ``` bloklarını ya da metin içindeki ilk { ... } bloğunu bul
     const match = trimmed.match(/\{[\s\S]*\}/);
-    if (match) return JSON.parse(match[0]);
-    throw new Error("Model yanıtından JSON çıkarılamadı");
+    const candidate = match ? match[0] : trimmed;
+    try {
+      return JSON.parse(candidate);
+    } catch (_) {
+      const repaired = repairTruncatedJson(candidate);
+      if (repaired) {
+        console.warn("[analyze] Model yanıtı yarıda kesilmişti, kısmi veriyle onarıldı.");
+        return repaired;
+      }
+      throw new Error("Model yanıtından JSON çıkarılamadı");
+    }
   }
+}
+
+// repairTruncatedJson ile kurtarılan bir sonuçta bazı alanlar eksik kalmış
+// olabilir (örn. dizi ortasında kesildiyse o dizinin geri kalanı ya da
+// sonraki alanlar hiç yok). ResultScreen'in çökmemesi için (örn. eksik bir
+// diziye .map çağrılması) makul varsayılanlarla dolduruyoruz.
+function withSafeDefaults(parsed) {
+  // Geçerli bir bileşen satırı mı? (kesilme sonrası yarım objeler gelebilir)
+  const seenNames = new Set();
+  const validIngredients = (Array.isArray(parsed.ingredients) ? parsed.ingredients : []).filter((i) => {
+    if (!i || typeof i.name !== "string" || !i.name.trim()) return false;
+    // Aynı isim iki kez gelirse arayüzde tekrar eden satır/duplicate key
+    // oluşmasın diye ilkini tutuyoruz.
+    const key = i.name.trim().toLowerCase();
+    if (seenNames.has(key)) return false;
+    seenNames.add(key);
+    return true;
+  });
+
+  // harmfulIngredients / beneficialIngredients artık modelden İSTENMİYOR —
+  // ingredients listesinin tekrarıydılar ve yanıtı gereksiz uzatıp
+  // max_tokens sınırına takılmasına yol açıyorlardı. Bunun yerine burada,
+  // risk seviyesine göre kendimiz ayırıyoruz. (Model eski şemayla yanıt
+  // verirse onu da kabul ediyoruz — geriye dönük uyumluluk.)
+  const harmful = Array.isArray(parsed.harmfulIngredients) && parsed.harmfulIngredients.length
+    ? parsed.harmfulIngredients
+    : validIngredients.filter((i) => i.risk === "riskli" || i.risk === "orta");
+  const beneficial = Array.isArray(parsed.beneficialIngredients) && parsed.beneficialIngredients.length
+    ? parsed.beneficialIngredients
+    : validIngredients.filter((i) => i.risk === "iyi");
+
+  return {
+    productName: parsed.productName || "Ürün",
+    brand: parsed.brand || "Bilinmiyor",
+    category: parsed.category || "",
+    effectivenessScore: typeof parsed.effectivenessScore === "number" ? parsed.effectivenessScore : 50,
+    effectivenessSummary: parsed.effectivenessSummary || "",
+    healthScore: typeof parsed.healthScore === "number" ? parsed.healthScore : 50,
+    ingredients: validIngredients,
+    harmfulIngredients: harmful,
+    beneficialIngredients: beneficial,
+    reviewSummary: {
+      averageSentiment: typeof parsed.reviewSummary?.averageSentiment === "number" ? parsed.reviewSummary.averageSentiment : 50,
+      totalMentionsAnalyzed:
+        typeof parsed.reviewSummary?.totalMentionsAnalyzed === "number" ? parsed.reviewSummary.totalMentionsAnalyzed : 0,
+      positiveHighlights: Array.isArray(parsed.reviewSummary?.positiveHighlights) ? parsed.reviewSummary.positiveHighlights : [],
+      negativeHighlights: Array.isArray(parsed.reviewSummary?.negativeHighlights) ? parsed.reviewSummary.negativeHighlights : [],
+      sampleQuotes: Array.isArray(parsed.reviewSummary?.sampleQuotes) ? parsed.reviewSummary.sampleQuotes : [],
+    },
+    disclaimer:
+      parsed.disclaimer ||
+      "Bu analiz yapay zeka tarafından üretilmiştir ve tıbbi tavsiye yerine geçmez; ayrıca yanıt beklenenden uzun olduğu için bazı bölümler eksik olabilir.",
+  };
 }
 
 function extractTextBlock(response) {
@@ -78,7 +211,7 @@ async function analyzeProductImage(imageBuffer, mimeType, imageBackBuffer, backM
 
   const response = await anthropic.messages.create({
     model: MODEL,
-    max_tokens: 4096,
+    max_tokens: 16000,
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content }],
   });
@@ -87,7 +220,7 @@ async function analyzeProductImage(imageBuffer, mimeType, imageBackBuffer, backM
     console.warn("[analyze] Model yanıtı max_tokens sınırında kesildi (görsel analiz).");
   }
   const parsed = extractJson(extractTextBlock(response));
-  return { ...parsed, source: "ai" };
+  return { ...withSafeDefaults(parsed), source: "ai" };
 }
 
 /**
@@ -112,7 +245,7 @@ async function analyzeKnownProduct(productInfo) {
 
   const response = await anthropic.messages.create({
     model: MODEL,
-    max_tokens: 4096,
+    max_tokens: 16000,
     system: KNOWN_PRODUCT_SYSTEM_PROMPT,
     messages: [{ role: "user", content: buildKnownProductUserPrompt(productInfo) }],
   });
@@ -121,7 +254,7 @@ async function analyzeKnownProduct(productInfo) {
     console.warn("[analyze] Model yanıtı max_tokens sınırında kesildi (barkod tabanlı analiz).");
   }
   const parsed = extractJson(extractTextBlock(response));
-  return { ...parsed, source: "ai+barcode" };
+  return { ...withSafeDefaults(parsed), source: "ai+barcode" };
 }
 
 module.exports = { analyzeProductImage, analyzeKnownProduct };

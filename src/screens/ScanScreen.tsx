@@ -1,7 +1,7 @@
 import React, { useCallback, useRef, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { CameraView, useCameraPermissions, BarcodeScanningResult } from "expo-camera";
+import { CameraView, useCameraPermissions, BarcodeScanningResult, BarcodeType } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
@@ -9,9 +9,24 @@ import { colors, spacing, radius } from "../theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Scan">;
 
-// Ürünlerde tipik olarak bulunan perakende barkod formatları (QR hariç —
-// burada QR kod değil, ürün barkodu arıyoruz).
-const PRODUCT_BARCODE_TYPES = ["ean13", "ean8", "upc_a", "upc_e"] as const;
+// Ürünlerde karşılaşılabilecek barkod formatları. Perakende ürünlerde asıl
+// kullanılanlar EAN/UPC ailesi, ama bazı kozmetik kutularında code128 / itf14
+// da basılı olabiliyor — algılama şansını artırmak için hepsini dinliyoruz.
+const PRODUCT_BARCODE_TYPES: BarcodeType[] = [
+  "ean13",
+  "ean8",
+  "upc_a",
+  "upc_e",
+  "code128",
+  "code39",
+  "itf14",
+];
+
+// iOS'ta ana (1x) kamera bu isimle geliyor. Bazı iPhone'larda kamera
+// varsayılan olarak ultra-geniş (0.5x) lensi seçebiliyor; o lens yakın
+// çekimde belirgin şekilde daha bulanık/bozuk görüntü veriyor ve hem barkod
+// okuma hem etiket okuma başarısını düşürüyor.
+const MAIN_LENS = "builtInWideAngleCamera";
 
 // idle: normal tarama modu (barkod dinliyor, ilk/tek fotoğrafı bekliyor)
 // awaitingBackChoice: ön yüz çekildi, kullanıcıya arka yüzü (içerik listesi)
@@ -28,7 +43,24 @@ export default function ScanScreen({ navigation }: Props) {
   const [torchOn, setTorchOn] = useState(false);
   const [stage, setStage] = useState<Stage>("idle");
   const [frontUri, setFrontUri] = useState<string | null>(null);
+  const [selectedLens, setSelectedLens] = useState<string | undefined>(undefined);
   const barcodeLockRef = useRef(false);
+
+  // Kamera hazır olunca cihazdaki lensleri sorup ana (1x geniş açı) lensi
+  // açıkça seçiyoruz. iOS dışında bu API yok, o yüzden hata durumunu sessizce
+  // yutuyoruz (varsayılan lens kullanılmaya devam eder).
+  const handleCameraReady = useCallback(async () => {
+    try {
+      const lenses = await cameraRef.current?.getAvailableLensesAsync();
+      if (!lenses?.length) return;
+      const main =
+        lenses.find((l) => l === MAIN_LENS) ??
+        lenses.find((l) => /wideangle/i.test(l) && !/ultra/i.test(l));
+      if (main) setSelectedLens(main);
+    } catch {
+      // iOS dışı platform ya da desteklenmeyen cihaz — varsayılanla devam.
+    }
+  }, []);
 
   const goToAnalyzing = (imageUri: string, backImageUri?: string, barcode?: string) => {
     navigation.replace("Analyzing", { imageUri, backImageUri, barcode });
@@ -38,9 +70,9 @@ export default function ScanScreen({ navigation }: Props) {
     if (!cameraRef.current || isCapturing) return;
     try {
       setIsCapturing(true);
-      // quality 0.9: içerik listesi gibi küçük yazıları AI'nin okuyabilmesi
-      // için sıkıştırmayı olabildiğince az tutuyoruz (0.7 -> 0.9).
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.9 });
+      // quality 1: içerik listesi gibi küçük yazıların AI tarafından
+      // okunabilmesi için JPEG sıkıştırmasını en aza indiriyoruz.
+      const photo = await cameraRef.current.takePictureAsync({ quality: 1 });
       if (!photo?.uri) return;
 
       if (opts?.barcode) {
@@ -72,9 +104,8 @@ export default function ScanScreen({ navigation }: Props) {
   // Barkod algılandığında: kısa bir onay gösterip otomatik fotoğraf çekip
   // devam ediyoruz. barcodeLockRef, kamera görüş alanında barkod dururken
   // onBarcodeScanned'in saniyede defalarca tetiklenmesini engelliyor.
-  // Gecikmeyi 500ms -> 950ms çıkardık: barkod algılandığı anda kamera genelde
-  // henüz netlenmemiş oluyor (kullanıcı telefonu hâlâ konumluyor), çok hızlı
-  // çekim yapınca bulanık fotoğraf çıkıyor ve AI etiketi okuyamıyordu.
+  // Gecikme (950ms), barkod algılandığı anda kameranın henüz netlenmemiş
+  // olabileceği için bilinçli olarak konuldu.
   const handleBarcodeScanned = useCallback((result: BarcodeScanningResult) => {
     if (barcodeLockRef.current || isCapturing) return;
     barcodeLockRef.current = true;
@@ -87,7 +118,7 @@ export default function ScanScreen({ navigation }: Props) {
   const pickFromGallery = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
-      quality: 0.9,
+      quality: 1,
     });
     if (!result.canceled && result.assets?.[0]?.uri) {
       // Galeriden seçilen fotoğrafta barkod algılamıyoruz, direkt AI analizine düşer.
@@ -134,16 +165,20 @@ export default function ScanScreen({ navigation }: Props) {
         facing="back"
         autofocus="on"
         enableTorch={torchOn}
-        // Bazı iPhone modellerinde (ultra-geniş + geniş + tele üç lensli)
-        // zoom belirtilmeyince kamera varsayılan olarak ultra-geniş (0.5x)
-        // lensi seçebiliyor; bu lens daha çok bozulma/daha az netlik verir ve
-        // yakın çekimde (etiket okuma) belirgin şekilde bulanıklaşıyordu.
-        // Standart 1x geniş açı lensini açıkça zorunlu kılıyoruz.
-        selectedLens="builtInWideAngleCamera"
+        onCameraReady={handleCameraReady}
+        // Ana (1x) kamera lensini açıkça seçiyoruz — bkz. MAIN_LENS notu.
+        selectedLens={selectedLens}
         zoom={0}
-        barcodeScannerSettings={{ barcodeTypes: [...PRODUCT_BARCODE_TYPES] }}
+        barcodeScannerSettings={{ barcodeTypes: PRODUCT_BARCODE_TYPES }}
         onBarcodeScanned={stage === "idle" && !detectedBarcode ? handleBarcodeScanned : undefined}
       />
+
+      {/* Çerçeveleme kılavuzu: kullanıcının etiketi/barkodu kadraja tam
+          doldurması, AI'nin küçük yazıları okuyabilmesi için en kritik nokta. */}
+      <View style={styles.guideWrap} pointerEvents="none">
+        <View style={styles.guideFrame} />
+      </View>
+
       <SafeAreaView style={styles.overlay} pointerEvents="box-none">
         <View style={styles.topBar}>
           <View style={styles.topRow}>
@@ -164,14 +199,14 @@ export default function ScanScreen({ navigation }: Props) {
           ) : stage === "capturingBack" ? (
             <View style={styles.barcodeBanner}>
               <Text style={styles.barcodeBannerText}>
-                Şimdi İÇERİK LİSTESİ yazan arka yüzü çerçeve içine al ve çek
+                Şimdi İÇERİK LİSTESİNİ çerçeveye TAM doldur (yazılar ekranda okunabilsin) ve çek
               </Text>
             </View>
           ) : (
             <Text style={styles.hint}>
-              Ürünün barkodunu göster (otomatik algılanır) ya da içerik listesini çerçeve içine alıp
-              fotoğraf çek. Net görüntü için: iyi ışıkta, telefonu sabit tutup ürüne 10-15 cm mesafeden çek —
-              çok yakınsan kamera netleyemez. Işık azsa 💡 düğmesiyle feneri aç.
+              Önce ürünün BARKODUNU çerçeveye tut — okunursa ürün kesin olarak tanınır. Barkod yoksa
+              ön yüzün fotoğrafını çek, ardından içerik listesini de çekmen istenecek. Yazılar ekranda
+              net okunuyorsa AI de okuyabilir; okunmuyorsa biraz yaklaş, ışık azsa 💡 feneri aç.
             </Text>
           )}
         </View>
@@ -220,6 +255,14 @@ export default function ScanScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   overlay: { flex: 1, justifyContent: "space-between" },
+  guideWrap: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
+  guideFrame: {
+    width: "82%",
+    height: "42%",
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.55)",
+    borderRadius: radius.md,
+  },
   topBar: { padding: spacing.lg },
   topRow: {
     flexDirection: "row",
@@ -238,7 +281,7 @@ const styles = StyleSheet.create({
   closeBtnText: { color: "#fff", fontSize: 16 },
   hint: {
     color: "#fff",
-    backgroundColor: "rgba(0,0,0,0.4)",
+    backgroundColor: "rgba(0,0,0,0.55)",
     padding: spacing.sm,
     borderRadius: radius.sm,
     fontSize: 13,
