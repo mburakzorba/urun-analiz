@@ -103,6 +103,21 @@ app.post("/analyze", uploadFields, async (req, res) => {
   }
 });
 
+// Genel hata yakalayıcı — özellikle multer hataları (örn. istemci ile sunucu
+// farklı sürümlerdeyse "Unexpected field" gibi hatalar) varsayılan olarak
+// Express'in HTML hata sayfasını döner; bu da istemci tarafında okunaksız,
+// teşhisi zor bir metin olarak görünür. Burada JSON'a çeviriyoruz ki hata
+// mesajı uygulama ekranında (Analiz başarısız oldu) net okunabilsin.
+app.use((err, _req, res, _next) => {
+  console.error("[index] Yakalanmayan hata:", err);
+  if (err && err.name === "MulterError") {
+    return res.status(400).json({
+      error: `Dosya yükleme hatası (${err.code}): ${err.message}. Bu genelde istemci ile sunucu farklı sürümde olduğunda olur — sunucunun (Render) en güncel index.js ile deploy edildiğinden emin ol.`,
+    });
+  }
+  res.status(500).json({ error: err?.message || "Sunucu hatası" });
+});
+
 app.listen(PORT, () => {
   console.log(`Ürün Analiz backend ${PORT} portunda çalışıyor. Sürüm: ${APP_VERSION}`);
   console.log(
