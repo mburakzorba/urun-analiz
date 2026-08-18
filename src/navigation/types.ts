@@ -8,4 +8,5 @@ export type RootStackParamList = {
   History: undefined;
   Paywall: undefined;
   Profile: undefined;
+  Compare: { a: ProductAnalysis; b: ProductAnalysis };
 };

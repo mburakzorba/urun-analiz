@@ -151,7 +151,19 @@ Yukarıdaki JSON şemasına uygun şekilde yanıt ver.`;
 
 const KNOWN_PRODUCT_SYSTEM_PROMPT = `Sen kişisel bakım ürünleri konusunda uzmanlaşmış bir içerik analistisin.
 Sana bir ürünün DOĞRULANMIŞ bilgileri (Open Beauty Facts açık veritabanından) verilecek: ürün adı, marka ve
-içerik/bileşen listesi. Bu bilgiler zaten doğru kabul edilmeli — fotoğraf yok, tahmin etmene gerek yok.
+(varsa) içerik/bileşen listesi. Ürün adı/marka bilgisi zaten doğru kabul edilmeli — fotoğraf yok, tahmin
+etmene gerek yok. AMA içerik/bileşen listesi BOŞ gelebilir (Open Beauty Facts'te bu ürün için INCI listesi
+girilmemiş olabilir) — bu durumda ne yapman gerektiği aşağıda "İÇERİK LİSTESİ BOŞ GELİRSE" bölümünde anlatılıyor.
+
+İÇERİK LİSTESİ BOŞ GELİRSE — ASLA "ingredients"İ BOŞ BIRAKMA:
+Ürün adı/markası tanıdık, bilinen bir ürünse (örn. Nivea, L'Oréal, Garnier gibi büyük/yaygın bir marka —
+yani eğitim verinde bu ürün hakkında genel bilgi olması muhtemelse), "ingredients" alanını bu ürünün
+YAYGIN OLARAK BİLİNEN/TİPİK bileşen listesiyle doldur (genel bilgine dayanarak — İnternet'te INCI
+Decoder, Open Beauty Facts vb. kaynaklarda yaygın olarak paylaşılan tipik formülasyon). Her bileşenin
+"explanation" alanında bunun ambalajdaki güncel listeden değil, ürünün genel/tipik bilinen
+formülasyonundan geldiğini kısaca ima et (örn. "Bu ürün ailesinde tipik olarak bulunur"). Sadece markanın
+kendisi de tamamen bilinmiyorsa/tanınmıyorsa "ingredients"i boş bırakabilirsin — ama bu SON ÇARE, sırf
+Open Beauty Facts'te veri girilmemiş diye asla direkt vazgeçme.
 
 Görevin:
 1. Verilen içerik/bileşen listesindeki (INCI adları) her bileşen için kısa bir açıklama ve risk seviyesi
@@ -186,7 +198,7 @@ function buildKnownProductUserPrompt({ productName, brand, ingredientsText }) {
     "",
     `Ürün adı: ${productName || "(belirtilmemiş)"}`,
     `Marka: ${brand || "(belirtilmemiş)"}`,
-    `İçerik listesi: ${ingredientsText || "(belirtilmemiş — bu durumda ürün kategorisine göre genel bir değerlendirme yap ve bunu effectivenessSummary içinde açıkça belirt)"}`,
+    `İçerik listesi: ${ingredientsText || "(Open Beauty Facts'te girilmemiş — yukarıdaki 'İÇERİK LİSTESİ BOŞ GELİRSE' talimatına göre davran: markayı tanıyorsan tipik/bilinen bileşenlerle 'ingredients' alanını doldur, bunu effectivenessSummary içinde de belirt)"}`,
   ].join("\n");
 }
 

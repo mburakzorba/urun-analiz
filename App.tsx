@@ -18,6 +18,7 @@ import ResultScreen from "./src/screens/ResultScreen";
 import HistoryScreen from "./src/screens/HistoryScreen";
 import PaywallScreen from "./src/screens/PaywallScreen";
 import ProfileScreen from "./src/screens/ProfileScreen";
+import CompareScreen from "./src/screens/CompareScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -43,6 +44,7 @@ export default function App() {
                   <Stack.Screen name="History" component={HistoryScreen} />
                   <Stack.Screen name="Paywall" component={PaywallScreen} options={{ presentation: "modal" }} />
                   <Stack.Screen name="Profile" component={ProfileScreen} options={{ presentation: "modal" }} />
+                  <Stack.Screen name="Compare" component={CompareScreen} />
                 </Stack.Navigator>
               </NavigationContainer>
             </UserProfileProvider>

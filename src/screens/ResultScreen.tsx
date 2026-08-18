@@ -6,6 +6,7 @@ import { RootStackParamList } from "../navigation/types";
 import { colors, spacing, radius } from "../theme";
 import { AnalyzedIngredient, IngredientRisk } from "../types";
 import { effectivenessVerdict, healthVerdict, satisfactionVerdict } from "../utils/verdict";
+import UsabilityGauge from "../components/UsabilityGauge";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Result">;
 
@@ -76,6 +77,11 @@ export default function ResultScreen({ route, navigation }: Props) {
             )}
           </View>
         </View>
+
+        <UsabilityGauge
+          score={Math.round((analysis.healthScore + analysis.effectivenessScore) / 2)}
+          caption="Sağlık ve gerçek etkinlik değerlendirmelerinin birleşimi — genel olarak bu ürünü kullanmak ne kadar mantıklı, tek bakışta."
+        />
 
         <View style={styles.scoresRow}>
           <VerdictCard title="İşe Yarıyor mu?" verdict={effectivenessVerdict(analysis.effectivenessScore)} />
