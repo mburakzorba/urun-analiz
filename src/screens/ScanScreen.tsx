@@ -1,8 +1,9 @@
 import React, { useCallback, useRef, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Image } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, Dimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions, BarcodeScanningResult, BarcodeType } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
+import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
 import { colors, spacing, radius } from "../theme";
@@ -22,11 +23,83 @@ const PRODUCT_BARCODE_TYPES: BarcodeType[] = [
   "itf14",
 ];
 
-// iOS'ta ana (1x) kamera bu isimle geliyor. Bazı iPhone'larda kamera
-// varsayılan olarak ultra-geniş (0.5x) lensi seçebiliyor; o lens yakın
-// çekimde belirgin şekilde daha bulanık/bozuk görüntü veriyor ve hem barkod
-// okuma hem etiket okuma başarısını düşürüyor.
-const MAIN_LENS = "builtInWideAngleCamera";
+// ÖNEMLİ DÜZELTME: expo-camera'nın getAvailableLensesAsync() fonksiyonu lens
+// adlarını iOS'un "localizedName" değeri olarak döner (örn. "Back Camera",
+// "Back Ultra Wide Camera", "Back Dual Wide Camera") — "builtInWideAngleCamera"
+// gibi iç (native enum) isimlerle DEĞİL. Önceki kod bu ismi arıyordu ve hiçbir
+// zaman eşleşmiyordu; bu yüzden selectedLens hep boş kalıyor, expo-camera da
+// varsayılan cihazı kullanıyordu — iPhone 13 Pro ve sonrasında bu varsayılan
+// genelde "Back Dual Wide Camera" gibi SANAL (virtual) bir cihaz oluyor ve bu
+// sanal cihaz, yakın mesafede otomatik olarak 0.5x ultra-geniş lense geçiyor
+// (macro modu). Tek fiziksel geniş açı lensini ("Back Camera") açıkça
+// seçtiğimizde bu sanal-cihaz geçişi hiç devreye girmiyor, çünkü artık ortada
+// "geçilecek" başka bir lens yok.
+const MAIN_LENS_EXACT = "Back Camera";
+
+// Ekrandaki çerçeveleme kılavuzunun boyutu (ekranın yüzdesi olarak). Aynı
+// değerler hem kılavuzu çizmek hem de fotoğrafı kırpmak için kullanılıyor —
+// yani kullanıcı çerçevenin içine ne koyduysa AI'ye giden görsel tam olarak o.
+const GUIDE_W = 0.82;
+const GUIDE_H = 0.42;
+
+/**
+ * Arka yüz (içerik listesi) fotoğrafını, ekrandaki kılavuz çerçevesine denk
+ * gelen bölgeye kırpar.
+ *
+ * NEDEN GEREKLİ: Kullanıcı ürünü biraz uzaktan çektiğinde, içerik listesi
+ * 4000x3000'lik fotoğrafın küçücük bir bölgesinde kalıyor. Görsel API'ye
+ * gönderilirken otomatik küçültüldüğü için o minik yazılar tamamen okunamaz
+ * hale geliyordu. Sadece çerçeve içini gönderirsek aynı yazı çok daha fazla
+ * piksele denk geliyor ve okunabiliyor.
+ *
+ * Kamera önizlemesi ekranı "cover" mantığıyla dolduruyor (fotoğrafın kenarları
+ * ekran dışında kalıyor), o yüzden ekran koordinatlarını fotoğraf
+ * koordinatlarına çevirirken bu taşmayı hesaba katmamız gerekiyor.
+ */
+async function cropToGuideFrame(uri: string, photoW?: number, photoH?: number): Promise<string> {
+  if (!photoW || !photoH) return uri;
+  try {
+    const { width: screenW, height: screenH } = Dimensions.get("window");
+
+    // "cover": fotoğraf, ekranı tamamen dolduracak en küçük ölçekle büyütülür.
+    const scale = Math.max(screenW / photoW, screenH / photoH);
+    const visibleW = screenW / scale; // fotoğrafın ekranda görünen kısmı (piksel)
+    const visibleH = screenH / scale;
+    const offsetX = (photoW - visibleW) / 2; // ekran dışında kalan kenar payı
+    const offsetY = (photoH - visibleH) / 2;
+
+    // Kılavuz çerçevesinin fotoğraf üzerindeki karşılığı
+    let cropW = (visibleW * GUIDE_W);
+    let cropH = (visibleH * GUIDE_H);
+    let cropX = offsetX + (visibleW - cropW) / 2;
+    let cropY = offsetY + (visibleH - cropH) / 2;
+
+    // Kullanıcının çerçevelemesi biraz kaymış olabilir — her yönde %10 pay
+    // bırakıyoruz ki etiketin kenarı kesilmesin.
+    const padX = cropW * 0.1;
+    const padY = cropH * 0.1;
+    cropX = Math.max(0, cropX - padX);
+    cropY = Math.max(0, cropY - padY);
+    cropW = Math.min(photoW - cropX, cropW + padX * 2);
+    cropH = Math.min(photoH - cropY, cropH + padY * 2);
+
+    if (cropW < 50 || cropH < 50) return uri; // mantıksız sonuç — orijinali kullan
+
+    const ctx = ImageManipulator.manipulate(uri);
+    ctx.crop({
+      originX: Math.round(cropX),
+      originY: Math.round(cropY),
+      width: Math.round(cropW),
+      height: Math.round(cropH),
+    });
+    const rendered = await ctx.renderAsync();
+    const saved = await rendered.saveAsync({ format: SaveFormat.JPEG, compress: 0.95 });
+    return saved.uri || uri;
+  } catch {
+    // Kırpma başarısız olursa orijinal fotoğrafla devam et — analiz yine çalışsın.
+    return uri;
+  }
+}
 
 // idle: normal tarama modu (barkod dinliyor, ilk/tek fotoğrafı bekliyor)
 // awaitingBackChoice: ön yüz çekildi, kullanıcıya arka yüzü (içerik listesi)
@@ -57,12 +130,23 @@ export default function ScanScreen({ navigation }: Props) {
     try {
       const lenses = await cameraRef.current?.getAvailableLensesAsync();
       if (!lenses?.length) return;
+      // Debug: bu satır Metro/Expo terminalinde hangi lens isimlerinin
+      // geldiğini gösterir — cihazlar arası isim farkı olursa buradan görülür.
+      console.log("[ScanScreen] Kullanılabilir lensler:", lenses);
+      // Önce tam eşleşme ("Back Camera" — tek, fiziksel, sanal olmayan geniş
+      // açı lensi). Bulunamazsa: adında "wide" geçen ama "ultra/dual/triple/
+      // tele" geçmeyen bir lens ara (bazı cihazlarda isimlendirme farklı
+      // olabilir). O da yoksa: en azından sanal/çoklu-lens olmayan (dual/
+      // triple/ultra/tele içermeyen) herhangi bir arka lens.
       const main =
-        lenses.find((l) => l === MAIN_LENS) ??
-        lenses.find((l) => /wideangle/i.test(l) && !/ultra/i.test(l));
+        lenses.find((l) => l === MAIN_LENS_EXACT) ??
+        lenses.find((l) => /wide/i.test(l) && !/ultra|dual|triple|tele/i.test(l)) ??
+        lenses.find((l) => !/ultra|dual|triple|tele/i.test(l));
+      console.log("[ScanScreen] Seçilen lens:", main);
       if (main) setSelectedLens(main);
-    } catch {
+    } catch (e) {
       // iOS dışı platform ya da desteklenmeyen cihaz — varsayılanla devam.
+      console.log("[ScanScreen] Lens seçimi başarısız:", e);
     }
   }, []);
 
@@ -88,9 +172,11 @@ export default function ScanScreen({ navigation }: Props) {
 
       if (opts?.isBackShot) {
         // İki adımlı akışın 2. fotoğrafı: içerik listesinin olduğu arka yüz.
-        // Analize göndermeden önce kullanıcıya gösterip onaylatıyoruz —
-        // yazılar okunmuyorsa tekrar çekebilsin.
-        setBackUri(photo.uri);
+        // Çerçeve içine kırpıyoruz (yazıların okunabilir kalması için kritik),
+        // sonra kullanıcıya kırpılmış halini gösterip onaylatıyoruz — böylece
+        // kullanıcı AI'nin göreceği görüntünün TAM OLARAK aynısını görüyor.
+        const cropped = await cropToGuideFrame(photo.uri, photo.width, photo.height);
+        setBackUri(cropped);
         setStage("backPreview");
         return;
       }
@@ -180,10 +266,10 @@ export default function ScanScreen({ navigation }: Props) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.previewContainer}>
-          <Text style={styles.previewTitle}>İçerik listesi okunuyor mu?</Text>
+          <Text style={styles.previewTitle}>Bileşen isimlerini okuyabiliyor musun?</Text>
           <Text style={styles.previewSubtitle}>
-            Aşağıdaki fotoğrafta bileşen isimlerini sen okuyabiliyorsan AI de okuyabilir.
-            Yazılar bulanıksa tekrar çek — bu, sonucun doğruluğunu belirleyen en önemli adım.
+            AI'ye gönderilecek görüntü aynen bu. Bileşen isimlerini burada sen okuyamıyorsan
+            AI de okuyamaz — "Tekrar Çek" deyip telefonu etikete daha çok yaklaştır.
           </Text>
           <Image source={{ uri: backUri }} style={styles.previewImage} resizeMode="contain" />
           <View style={styles.previewBtnRow}>
@@ -241,7 +327,8 @@ export default function ScanScreen({ navigation }: Props) {
           ) : stage === "capturingBack" ? (
             <View style={styles.barcodeBanner}>
               <Text style={styles.barcodeBannerText}>
-                Şimdi İÇERİK LİSTESİNİ çerçeveye TAM doldur (yazılar ekranda okunabilsin) ve çek
+                Telefonu YAKLAŞTIR: içerik listesi çerçeveyi TAMAMEN doldursun. Sadece çerçevenin
+                içi analiz edilir — yazılar şu an ekranda okunmuyorsa daha da yaklaş.
               </Text>
             </View>
           ) : (
@@ -299,10 +386,10 @@ const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: "space-between" },
   guideWrap: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
   guideFrame: {
-    width: "82%",
-    height: "42%",
+    width: `${GUIDE_W * 100}%`,
+    height: `${GUIDE_H * 100}%`,
     borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.55)",
+    borderColor: "rgba(255,255,255,0.75)",
     borderRadius: radius.md,
   },
   topBar: { padding: spacing.lg },

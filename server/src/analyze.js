@@ -209,12 +209,22 @@ async function analyzeProductImage(imageBuffer, mimeType, imageBackBuffer, backM
 
   content.push({ type: "text", text: hasBackImage ? USER_PROMPT_TWO_IMAGES : USER_PROMPT });
 
-  const response = await anthropic.messages.create({
+  // ÖNEMLİ: max_tokens: 32000 gibi yüksek bir değerle normal (streaming
+  // olmayan) messages.create() çağrısı yaparsak, Anthropic SDK'sı "bu istek
+  // 10 dakikadan uzun sürebilir, streaming kullanman gerekiyor" hatasıyla
+  // İSTEĞİ HİÇ GÖNDERMEDEN reddediyor (SDK'nın kendi güvenlik kontrolü).
+  // Bu hata /analyze içindeki try/catch tarafından yakalanıp mock veriye
+  // düşülmesine yol açıyordu — Render loglarında "Streaming is required for
+  // operations that may take longer than 10 minutes" olarak görünen buydu.
+  // Çözüm: SDK'nın streaming yardımcısını (.stream()) kullanmak — bu, aynı
+  // sonucu (tam metni) üretiyor ama SDK'nın uzun-istek kısıtlamasına takılmıyor.
+  const stream = anthropic.messages.stream({
     model: MODEL,
     max_tokens: 32000,
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content }],
   });
+  const response = await stream.finalMessage();
 
   if (response.stop_reason === "max_tokens") {
     console.warn("[analyze] Model yanıtı max_tokens sınırında kesildi (görsel analiz).");
@@ -243,12 +253,16 @@ async function analyzeKnownProduct(productInfo) {
     };
   }
 
-  const response = await anthropic.messages.create({
+  // (Yukarıdaki analyzeProductImage'daki aynı not geçerli — yüksek max_tokens
+  // ile streaming olmadan istek atarsak SDK "Streaming is required..." hatası
+  // veriyor. Bunu Render loglarında tam olarak bu fonksiyon için gördük.)
+  const stream = anthropic.messages.stream({
     model: MODEL,
     max_tokens: 32000,
     system: KNOWN_PRODUCT_SYSTEM_PROMPT,
     messages: [{ role: "user", content: buildKnownProductUserPrompt(productInfo) }],
   });
+  const response = await stream.finalMessage();
 
   if (response.stop_reason === "max_tokens") {
     console.warn("[analyze] Model yanıtı max_tokens sınırında kesildi (barkod tabanlı analiz).");
