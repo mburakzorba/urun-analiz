@@ -3,6 +3,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const multer = require("multer");
+const rateLimit = require("express-rate-limit");
 const { randomUUID } = require("crypto");
 
 const { analyzeProductImage, analyzeKnownProduct } = require("./analyze");
@@ -17,7 +18,7 @@ const PORT = process.env.PORT || 3000;
 // değişiklik yapıp Render'a gönderdikten sonra tarayıcıda /health adresine
 // bakınca burada yazan değeri görüyorsan yeni kod canlıdır. Görmüyorsan
 // deploy tamamlanmamıştır (ya da hâlâ sürüyordur).
-const APP_VERSION = "2026-08-18-bos-icerik-listesi-duzeltmesi";
+const APP_VERSION = "2026-08-18-guvenlik-anahtar-ve-rate-limit";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -37,7 +38,49 @@ app.get("/health", (_req, res) => {
   res.json({ ok: true, hasApiKey: Boolean(process.env.ANTHROPIC_API_KEY), version: APP_VERSION });
 });
 
-app.post("/analyze", uploadFields, async (req, res) => {
+// --- Güvenlik: /analyze hem para hem AI çağrısı maliyeti olan tek endpoint,
+// bu yüzden iki katmanlı koruma var:
+//
+// 1) Paylaşılan gizli anahtar (APP_SHARED_SECRET): uygulamanın kendisi her
+//    istekte bir header ile bu anahtarı gönderiyor (bkz. client tarafındaki
+//    analyzeProduct.ts). Backend'de bu env değişkeni tanımlıysa, header
+//    eşleşmeyen istekler reddediliyor. Bu, Anthropic API anahtarını
+//    KORUMUYOR (o zaten hiç client'a gitmiyor, sadece sunucuda duruyor) —
+//    asıl koruduğu şey, birinin senin Render adresini bulup /analyze'a
+//    doğrudan (uygulamanın dışından) istek atarak senin AI faturana binmesi.
+//    Not: EXPO_PUBLIC_ ile başlayan değerler uygulamanın içine gömülüdür,
+//    yani bu anahtar da kararlı bir saldırgan tarafından uygulamadan
+//    çıkarılabilir — bu yüzden "mükemmel" değil, ama rastgele/fırsatçı
+//    kötüye kullanımın büyük kısmını (ör. birinin Render URL'ini bulup
+//    tarayıcıdan/Postman'den denemesi) engeller.
+// 2) Hız sınırlama (rate limit): IP başına dakikada en fazla 12 istek. Bu,
+//    anahtarı ele geçirmiş olsa bile birinin script ile arka arkaya binlerce
+//    istek atıp faturanı birkaç dakikada patlatmasını engeller.
+if (!process.env.APP_SHARED_SECRET) {
+  console.warn(
+    "[index] UYARI: APP_SHARED_SECRET tanımlı değil — /analyze endpoint'i şu an KORUMASIZ, herkes doğrudan çağırabilir. Render > Environment'a APP_SHARED_SECRET ekle ve client'taki EXPO_PUBLIC_APP_SECRET ile aynı değeri kullan."
+  );
+}
+
+function checkAppSecret(req, res, next) {
+  const expected = process.env.APP_SHARED_SECRET;
+  if (!expected) return next(); // henüz kurulmadıysa eski davranış (açık) devam eder
+  const provided = req.headers["x-app-secret"];
+  if (provided !== expected) {
+    return res.status(401).json({ error: "Yetkisiz istek." });
+  }
+  next();
+}
+
+const analyzeLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 dakika
+  max: 12, // aynı IP'den dakikada en fazla 12 /analyze isteği
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Çok fazla istek gönderildi, lütfen biraz sonra tekrar dene." },
+});
+
+app.post("/analyze", checkAppSecret, analyzeLimiter, uploadFields, async (req, res) => {
   try {
     const barcode = (req.body && req.body.barcode ? String(req.body.barcode) : "").trim();
 

@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
@@ -12,7 +12,7 @@ import { shortHealthVerdict } from "../utils/verdict";
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
 export default function HomeScreen({ navigation }: Props) {
-  const { state, remainingFreeScans, canScan } = useSubscription();
+  const { state, remainingFreeScans, canScan, premiumFairUseExceeded } = useSubscription();
   const { history } = useHistory();
   const { isProfileEmpty } = useUserProfile();
 
@@ -57,11 +57,30 @@ export default function HomeScreen({ navigation }: Props) {
 
         <TouchableOpacity
           style={[styles.scanBtn, !canScan && styles.scanBtnDisabled]}
-          onPress={() => (canScan ? navigation.navigate("Scan") : navigation.navigate("Paywall"))}
+          onPress={() => {
+            if (canScan) {
+              navigation.navigate("Scan");
+            } else if (premiumFairUseExceeded) {
+              // Premium kullanıcı zaten abone — burada "Premium'a geç" demek
+              // anlamsız/kafa karıştırıcı olur. Âdil kullanım sınırını
+              // pazarlamada hiç göstermediğimiz için mesajı da yumuşak
+              // tutuyoruz, tam sayıyı belirtmiyoruz.
+              Alert.alert(
+                "Yoğun kullanım tespit edildi",
+                "Bu ay çok sayıda tarama yaptın. Sistemi herkes için sağlıklı tutmak adına kısa bir süreliğine yeni taramaları duraklattık — sınırın ayın başında otomatik sıfırlanacak."
+              );
+            } else {
+              navigation.navigate("Paywall");
+            }
+          }}
         >
           <Text style={styles.scanBtnIcon}>📷</Text>
           <Text style={styles.scanBtnText}>
-            {canScan ? "Ürün Fotoğrafı Çek" : "Aylık Hakkın Doldu — Premium'a Geç"}
+            {canScan
+              ? "Ürün Fotoğrafı Çek"
+              : premiumFairUseExceeded
+              ? "Şu An Yoğunluk Var — Az Sonra Tekrar Dene"
+              : "Aylık Hakkın Doldu — Premium'a Geç"}
           </Text>
         </TouchableOpacity>
 

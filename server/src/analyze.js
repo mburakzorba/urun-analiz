@@ -169,6 +169,17 @@ function withSafeDefaults(parsed) {
   };
 }
 
+// Sistem talimatlarımız (SYSTEM_PROMPT / KNOWN_PRODUCT_SYSTEM_PROMPT) HER
+// istekte birebir aynı — hiç değişmiyor (~2000+ token). Anthropic'in "prompt
+// caching" özelliğiyle bunu işaretlersek, art arda gelen isteklerde bu kısım
+// için normal fiyatın çok altında (yaklaşık %90 indirimli) ödeme yapıyoruz —
+// içerik/davranış hiç değişmiyor, sadece maliyet düşüyor. cache_control
+// eklemek için system parametresini düz string yerine bir blok dizisi olarak
+// vermemiz gerekiyor.
+function cachedSystemPrompt(text) {
+  return [{ type: "text", text, cache_control: { type: "ephemeral" } }];
+}
+
 function extractTextBlock(response) {
   const textBlock = response.content.find((block) => block.type === "text");
   if (!textBlock) throw new Error("Modelden metin yanıtı alınamadı");
@@ -228,13 +239,16 @@ async function analyzeProductImage(imageBuffer, mimeType, imageBackBuffer, backM
   const stream = anthropic.messages.stream({
     model: MODEL,
     max_tokens: 32000,
-    system: SYSTEM_PROMPT,
+    system: cachedSystemPrompt(SYSTEM_PROMPT),
     messages: [{ role: "user", content }],
   });
   const response = await stream.finalMessage();
 
   if (response.stop_reason === "max_tokens") {
     console.warn("[analyze] Model yanıtı max_tokens sınırında kesildi (görsel analiz).");
+  }
+  if (response.usage?.cache_read_input_tokens) {
+    console.log(`[analyze] Prompt cache isabeti: ${response.usage.cache_read_input_tokens} token indirimli okundu.`);
   }
   const parsed = extractJson(extractTextBlock(response));
   return { ...withSafeDefaults(parsed), source: "ai" };
@@ -269,13 +283,16 @@ async function analyzeKnownProduct(productInfo, profile) {
   const stream = anthropic.messages.stream({
     model: MODEL,
     max_tokens: 32000,
-    system: KNOWN_PRODUCT_SYSTEM_PROMPT,
+    system: cachedSystemPrompt(KNOWN_PRODUCT_SYSTEM_PROMPT),
     messages: [{ role: "user", content: userText }],
   });
   const response = await stream.finalMessage();
 
   if (response.stop_reason === "max_tokens") {
     console.warn("[analyze] Model yanıtı max_tokens sınırında kesildi (barkod tabanlı analiz).");
+  }
+  if (response.usage?.cache_read_input_tokens) {
+    console.log(`[analyze] Prompt cache isabeti: ${response.usage.cache_read_input_tokens} token indirimli okundu.`);
   }
   const parsed = extractJson(extractTextBlock(response));
   return { ...withSafeDefaults(parsed), source: "ai+barcode" };

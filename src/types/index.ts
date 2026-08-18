@@ -48,7 +48,10 @@ export interface ProductAnalysis {
 
 export interface SubscriptionState {
   isPremium: boolean;
-  freeScansUsedThisMonth: number;
+  // Bu ay yapılan TÜM taramalar (Premium dahil) — Premium kullanıcılarda
+  // "âdil kullanım" sınırını (aşırı/kötüye kullanım) tespit etmek için de
+  // kullanılıyor, sadece ücretsiz plan sayacı değil.
+  scansUsedThisMonth: number;
   freeScansLimit: number;
   currentPeriodStart: string; // ISO tarih, ayın başı
 }

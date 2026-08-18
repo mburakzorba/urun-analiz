@@ -4,6 +4,9 @@ import { getMockAnalysis } from "./mockAnalysis";
 // Backend adresini .env dosyasından okuyoruz (bkz. .env.example).
 // Expo'da client tarafına açılan env değişkenleri EXPO_PUBLIC_ ile başlamalı.
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
+// Backend'deki APP_SHARED_SECRET ile eşleşmesi gereken paylaşılan anahtar —
+// rastgele birinin backend adresini bulup doğrudan istek atmasını zorlaştırır.
+const APP_SECRET = process.env.EXPO_PUBLIC_APP_SECRET;
 
 /**
  * Kullanıcının çektiği ürün fotoğrafını (ve varsa algılanan barkodu) analiz eder.
@@ -75,6 +78,10 @@ export async function analyzeProductPhoto(
     response = await fetch(`${API_URL}/analyze`, {
       method: "POST",
       body: formData,
+      // Content-Type'ı elle vermiyoruz (yukarıdaki not) ama başka bir header
+      // eklemek sorun değil — bu, backend'deki APP_SHARED_SECRET korumasıyla
+      // eşleşen paylaşılan anahtar.
+      headers: APP_SECRET ? { "X-App-Secret": APP_SECRET } : undefined,
     });
   } catch (networkError: any) {
     // fetch'in kendisi başarısız oldu (telefon internete çıkamadı, Render

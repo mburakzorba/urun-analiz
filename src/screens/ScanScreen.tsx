@@ -56,6 +56,31 @@ const GUIDE_H = 0.42;
  * ekran dışında kalıyor), o yüzden ekran koordinatlarını fotoğraf
  * koordinatlarına çevirirken bu taşmayı hesaba katmamız gerekiyor.
  */
+// Claude'un görsel analizinde "standart" çözünürlük katmanı en uzun kenarı
+// ~1568 piksele kadar kullanıyor — bunun ÜZERİNDEKİ piksellerin OCR/okuma
+// kalitesine katkısı yok, sadece token (=maliyet) olarak faturaya yansıyor.
+// quality:1 ile çekilen telefon fotoğrafları genelde 3000-4000px civarında
+// oluyor; AI'ye göndermeden önce bu boyuta indirmek görüntü kalitesini
+// ETKİLEMEDEN (model zaten kendi içinde bu boyuta indiriyor) tarama başına
+// görsel maliyetini belirgin şekilde düşürüyor.
+const MAX_UPLOAD_DIMENSION = 1568;
+
+async function resizeForUpload(uri: string, width?: number, height?: number): Promise<string> {
+  if (!width || !height) return uri;
+  const longest = Math.max(width, height);
+  if (longest <= MAX_UPLOAD_DIMENSION) return uri; // zaten küçük, gerek yok
+  try {
+    const scale = MAX_UPLOAD_DIMENSION / longest;
+    const ctx = ImageManipulator.manipulate(uri);
+    ctx.resize({ width: Math.round(width * scale), height: Math.round(height * scale) });
+    const rendered = await ctx.renderAsync();
+    const saved = await rendered.saveAsync({ format: SaveFormat.JPEG, compress: 0.9 });
+    return saved.uri || uri;
+  } catch {
+    return uri; // küçültme başarısız olursa orijinali gönder — analiz yine çalışsın.
+  }
+}
+
 async function cropToGuideFrame(uri: string, photoW?: number, photoH?: number): Promise<string> {
   if (!photoW || !photoH) return uri;
   try {
@@ -92,6 +117,14 @@ async function cropToGuideFrame(uri: string, photoW?: number, photoH?: number): 
       width: Math.round(cropW),
       height: Math.round(cropH),
     });
+    // Kırpılmış bölge de (nadiren) MAX_UPLOAD_DIMENSION'ı aşabilir — aynı
+    // işlem içinde (tek geçişte) gerekirse küçültüyoruz, ayrı bir adım
+    // eklemeye gerek yok.
+    const longestCropped = Math.max(cropW, cropH);
+    if (longestCropped > MAX_UPLOAD_DIMENSION) {
+      const scale = MAX_UPLOAD_DIMENSION / longestCropped;
+      ctx.resize({ width: Math.round(cropW * scale), height: Math.round(cropH * scale) });
+    }
     const rendered = await ctx.renderAsync();
     const saved = await rendered.saveAsync({ format: SaveFormat.JPEG, compress: 0.95 });
     return saved.uri || uri;
@@ -166,7 +199,8 @@ export default function ScanScreen({ navigation }: Props) {
       if (opts?.barcode) {
         // Barkod otomatik algılandığında tek fotoğraf yeterli — barkod zaten
         // ürünü güçlü şekilde tanımlıyor, iki adımlı akışa gerek yok.
-        goToAnalyzing(photo.uri, undefined, opts.barcode);
+        const resized = await resizeForUpload(photo.uri, photo.width, photo.height);
+        goToAnalyzing(resized, undefined, opts.barcode);
         return;
       }
 
@@ -185,7 +219,8 @@ export default function ScanScreen({ navigation }: Props) {
       // arka yüzü/içerik listesini de çekmesini öneriyoruz: AI'nin ön yüzden
       // tahmin yürütmesindense gerçek içerik listesinden okuması çok daha
       // doğru sonuç veriyor.
-      setFrontUri(photo.uri);
+      const resizedFront = await resizeForUpload(photo.uri, photo.width, photo.height);
+      setFrontUri(resizedFront);
       setStage("awaitingBackChoice");
     } catch (e) {
       Alert.alert("Hata", "Fotoğraf çekilemedi, tekrar dener misin?");
@@ -215,7 +250,9 @@ export default function ScanScreen({ navigation }: Props) {
     });
     if (!result.canceled && result.assets?.[0]?.uri) {
       // Galeriden seçilen fotoğrafta barkod algılamıyoruz, direkt AI analizine düşer.
-      goToAnalyzing(result.assets[0].uri);
+      const asset = result.assets[0];
+      const resized = await resizeForUpload(asset.uri, asset.width, asset.height);
+      goToAnalyzing(resized);
     }
   };
 
