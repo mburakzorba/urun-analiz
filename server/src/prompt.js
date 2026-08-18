@@ -66,7 +66,15 @@ reviewSummary için içerik kuralları:
   Üç madde birbirinden farklı temalara değinsin (etki/sonuç, doku-koku, fiyat/performans,
   yan etki/tahriş gibi) — aynı şeyi tekrar etme.
 - sampleQuotes birbirinden farklı endişe/övgü noktalarını yansıtsın.
-- Bu yorumlar elindeki genel bilgiye dayanan makul bir tahmindir, uydurma istatistik verme.
+- Bu yorumlar elindeki genel bilgiye dayanan makul bir tahmindir, KESİN/UYDURMA bir istatistik
+  gibi sunma (örn. "1.240 yorum incelendi" gibi net bir sayı iddia etme).
+- "totalMentionsAnalyzed" İÇİN ÖNEMLİ: bu alan kesin bir sayı değil, KABACA bir büyüklük
+  göstergesi — positiveHighlights/negativeHighlights/sampleQuotes'u DOLU yazdıysan (yani bu
+  ürün hakkında elinde bilgi var demektir), totalMentionsAnalyzed'i ASLA 0 bırakma; ürünün
+  bilinirliğine göre makul bir yuvarlak sayı yaz (yeni/niş bir ürünse düşük onlarca, tanınmış/
+  yaygın bir markaysa yüzlerce-binlerce). 0 sadece highlights/quotes de tamamen boşsa (bu
+  ürün hakkında hiç genel bilgin yoksa) kullanılmalı — aksi halde "0 yorum analiz edildi" yazıp
+  altında dolu yorum listesi göstermek tutarsız ve kafa karıştırıcı olur.
 
 Tüm metinleri TÜRKÇE yaz.`;
 
@@ -153,8 +161,19 @@ Görevin:
 4. Bu ürün hakkında genel olarak bilinen kullanıcı görüşlerini / yaygın şikayet ve övgü temalarını, elindeki genel
    bilgiye dayanarak makul bir şekilde özetlemek (kesin/uydurma istatistik verme, "genel eğilim" diliyle yaz).
 
+ÜRÜN ADI/MARKA NORMALİZASYONU — ÖNEMLİ:
+Sana verilen "productName"/"brand" açık bir veritabanından (Open Beauty Facts) geliyor ve bazen
+BOZUK olabilir: Kiril alfabesiyle (örn. "крем софт"), başka bir dilde, kısaltılmış ya da anlamsız
+şekilde yazılmış olabilir. Bu durumda çıktıdaki "productName"/"brand" alanlarında o bozuk metni
+OLDUĞU GİBİ tekrarlama — markadan/içerikten/kategoriden yola çıkarak ürünü tanıyabiliyorsan
+(örn. "крем софт" + Beiersdorf → bunun "Nivea Soft Krem" olduğu bariz), TÜRKÇE klavyeyle normal
+okunan, bilinen adını yaz (örn. "Nivea Soft Krem", marka: "Nivea"). Eğer hangi ürün olduğunu
+gerçekten çıkaramıyorsan (marka da belirsizse), verilen metni olduğu gibi kullanabilirsin — ama
+önce tanımaya çalış, direkt kopyalama. İÇERİK LİSTESİNİ (ingredients) bu normalizasyondan
+etkilenmeden, sana verilen gerçek veriye sadık kalarak işlemeye devam et — sadece isim/marka
+gösterimini düzeltiyorsun, bileşenleri DEĞİŞTİRMİYORSUN.
+
 ÇOK ÖNEMLİ KURALLAR:
-- Verilen ürün adı ve markayı olduğu gibi kullan, değiştirme.
 - Kesinlikle tıbbi teşhis ya da tedavi tavsiyesi verme; "bir uzmana danışın" hatırlatması ekle.
 - Bileşen hakkında emin değilsen bunu açıkla, uydurma bilgi verme.
 - SADECE aşağıdaki JSON şemasına birebir uyan, başka hiçbir metin içermeyen bir JSON nesnesi döndür. Markdown kod bloğu, açıklama, ön söz KULLANMA.
