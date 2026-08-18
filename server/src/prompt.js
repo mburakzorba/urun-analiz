@@ -155,6 +155,11 @@ Sana bir ürünün DOĞRULANMIŞ bilgileri (Open Beauty Facts açık veritabanı
 etmene gerek yok. AMA içerik/bileşen listesi BOŞ gelebilir (Open Beauty Facts'te bu ürün için INCI listesi
 girilmemiş olabilir) — bu durumda ne yapman gerektiği aşağıda "İÇERİK LİSTESİ BOŞ GELİRSE" bölümünde anlatılıyor.
 
+Bazı isteklerde (Open Beauty Facts'te ürün ADI eksikse) sana ayrıca ürünün bir FOTOĞRAFI da eklenmiş olabilir.
+Bu durumda kullanıcı mesajının sonunda ne yapman gerektiğini açıklayan bir NOT bulunur — o notu dikkatle uygula
+(özetle: görseli SADECE tam ürün adını/varyantını — örn. "Anti-Hair Loss", "Renk Koruyucu" gibi ürün hattını —
+teşhis etmek için kullan; içerik listesini görselden değil, sana verilen metinden al).
+
 İÇERİK LİSTESİ BOŞ GELİRSE — ASLA "ingredients"İ BOŞ BIRAKMA:
 Ürün adı/markası tanıdık, bilinen bir ürünse (örn. Nivea, L'Oréal, Garnier gibi büyük/yaygın bir marka —
 yani eğitim verinde bu ürün hakkında genel bilgi olması muhtemelse), "ingredients" alanını bu ürünün
@@ -192,14 +197,25 @@ gösterimini düzeltiyorsun, bileşenleri DEĞİŞTİRMİYORSUN.
 
 ${JSON_SCHEMA_BLOCK}`;
 
-function buildKnownProductUserPrompt({ productName, brand, ingredientsText }) {
-  return [
+function buildKnownProductUserPrompt({ productName, brand, ingredientsText }, hasImage) {
+  const lines = [
     "Aşağıdaki doğrulanmış ürün bilgisini değerlendir ve yukarıdaki JSON şemasına uygun şekilde yanıt ver:",
     "",
     `Ürün adı: ${productName || "(belirtilmemiş)"}`,
     `Marka: ${brand || "(belirtilmemiş)"}`,
     `İçerik listesi: ${ingredientsText || "(Open Beauty Facts'te girilmemiş — yukarıdaki 'İÇERİK LİSTESİ BOŞ GELİRSE' talimatına göre davran: markayı tanıyorsan tipik/bilinen bileşenlerle 'ingredients' alanını doldur, bunu effectivenessSummary içinde de belirt)"}`,
-  ].join("\n");
+  ];
+  if (hasImage) {
+    lines.push(
+      "",
+      "NOT: Ürün adı yukarıda belirtilmemiş (Open Beauty Facts'te eksik) — bu yüzden sana ürünün " +
+        "FOTOĞRAFINI da ekledik. Bu görseldeki ambalajı/etiketi OKUYARAK ürünün TAM adını ve varyantını " +
+        "belirle (sadece marka değil — kutuda/şişede yazan 'Anti-Hair Loss', 'Renk Koruyucu', 'Onarıcı', " +
+        "'Kepeğe Karşı' gibi ürün HATTI/iddiası da varsa onu da 'productName' alanına dahil et). İçerik " +
+        "listesi için görseli DEĞİL, yukarıdaki metni esas al — görsel sadece ürün kimliğini netleştirmek için."
+    );
+  }
+  return lines.join("\n");
 }
 
 // Kullanıcı profilini (cilt tipi/hedefler/alerjiler) modele okutulacak bir

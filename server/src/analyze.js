@@ -255,13 +255,21 @@ async function analyzeProductImage(imageBuffer, mimeType, imageBackBuffer, backM
 }
 
 /**
- * Open Beauty Facts'ten doğrulanmış ürün bilgisiyle (fotoğrafsız, sadece metin)
- * analiz yapar. Fotoğraf göndermediğimiz için görsel token maliyeti olmuyor,
- * ayrıca ürün adı/marka/içerik listesi doğrulanmış olduğu için daha güvenilir.
+ * Open Beauty Facts'ten doğrulanmış ürün bilgisiyle (çoğunlukla fotoğrafsız,
+ * sadece metin) analiz yapar. Fotoğraf göndermediğimiz için görsel token
+ * maliyeti olmuyor, ayrıca ürün adı/marka/içerik listesi doğrulanmış olduğu
+ * için daha güvenilir.
  *
  * productInfo: { productName, brand, ingredientsText }
+ * imageBuffer/mimeType: OPSİYONEL. Open Beauty Facts'te ürün ADI eksikse
+ *   (marka biliniyor ama tam ürün/varyant bilinmiyorsa — örn. "Vichy" markası
+ *   tanınıp "saç dökülme karşıtı" olduğu anlaşılamıyorsa) index.js bu
+ *   fonksiyona kullanıcının zaten çekmiş olduğu fotoğrafı da gönderir; model
+ *   SADECE ürünün tam adını/varyantını görselden okumak için bunu kullanır,
+ *   içerik listesi yine metinden gelir. Ürün adı zaten doluysa bu parametreler
+ *   verilmez — gereksiz görsel maliyeti olmasın diye.
  */
-async function analyzeKnownProduct(productInfo, profile) {
+async function analyzeKnownProduct(productInfo, profile, imageBuffer, mimeType) {
   const anthropic = getClient();
 
   if (!anthropic) {
@@ -274,8 +282,20 @@ async function analyzeKnownProduct(productInfo, profile) {
     };
   }
 
+  const hasImage = Boolean(imageBuffer && imageBuffer.length);
+  if (hasImage) {
+    console.log("[analyze] OBF ürün adı eksik — ürün kimliğini netleştirmek için fotoğraf da AI'ye gönderiliyor (ekstra görsel maliyeti var).");
+  }
+
   const profileBlock = buildProfileBlock(profile);
-  const userText = buildKnownProductUserPrompt(productInfo) + (profileBlock ? "\n" + profileBlock : "");
+  const userText = buildKnownProductUserPrompt(productInfo, hasImage) + (profileBlock ? "\n" + profileBlock : "");
+
+  const content = hasImage
+    ? [
+        { type: "image", source: { type: "base64", media_type: mimeType || "image/jpeg", data: imageBuffer.toString("base64") } },
+        { type: "text", text: userText },
+      ]
+    : userText;
 
   // (Yukarıdaki analyzeProductImage'daki aynı not geçerli — yüksek max_tokens
   // ile streaming olmadan istek atarsak SDK "Streaming is required..." hatası
@@ -284,7 +304,7 @@ async function analyzeKnownProduct(productInfo, profile) {
     model: MODEL,
     max_tokens: 32000,
     system: cachedSystemPrompt(KNOWN_PRODUCT_SYSTEM_PROMPT),
-    messages: [{ role: "user", content: userText }],
+    messages: [{ role: "user", content }],
   });
   const response = await stream.finalMessage();
 

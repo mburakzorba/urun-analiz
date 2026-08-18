@@ -18,7 +18,7 @@ const PORT = process.env.PORT || 3000;
 // değişiklik yapıp Render'a gönderdikten sonra tarayıcıda /health adresine
 // bakınca burada yazan değeri görüyorsan yeni kod canlıdır. Görmüyorsan
 // deploy tamamlanmamıştır (ya da hâlâ sürüyordur).
-const APP_VERSION = "2026-08-18-guvenlik-anahtar-ve-rate-limit";
+const APP_VERSION = "2026-08-18-varyant-tanima-ve-manuel-cekim";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -125,7 +125,16 @@ app.post("/analyze", checkAppSecret, analyzeLimiter, uploadFields, async (req, r
       if (known && (known.productName || known.ingredientsText)) {
         let result;
         try {
-          result = await analyzeKnownProduct(known, profile);
+          // Open Beauty Facts ürün ADINI içermiyorsa, sadece markayı biliyoruz
+          // demektir — AI "hangi varyant" (ör. saç dökülme karşıtı, renk
+          // koruyucu vb.) olduğunu metinden çıkaramaz. Bu durumda kullanıcının
+          // barkodu taratırken zaten çektiği fotoğrafı da (ekstra bir adım
+          // İSTEMEDEN) AI'ye gönderip ürün kimliğini görselden netleştirmesini
+          // istiyoruz. Ürün adı zaten doluysa görsele hiç gerek yok — maliyeti
+          // düşük tutmak için SADECE isim eksikken ekliyoruz.
+          const needsVisualHelp = !known.productName;
+          const helperImage = needsVisualHelp ? req.files?.image?.[0] : undefined;
+          result = await analyzeKnownProduct(known, profile, helperImage?.buffer, helperImage?.mimetype);
         } catch (err) {
           console.error("[/analyze] Barkod tabanlı AI analizi başarısız, mock veri dönülüyor:", err.message);
           result = { ...getMockAnalysis(), source: "ai+barcode" };
