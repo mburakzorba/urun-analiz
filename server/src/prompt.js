@@ -17,8 +17,27 @@ const JSON_SCHEMA_BLOCK = `JSON şeması:
     "negativeHighlights": [string],
     "sampleQuotes": [ { "text": string, "sentiment": "olumlu"|"olumsuz"|"nötr" } ]
   },
+  "usageFrequency": string,
+  "personalizedNote": string,
   "disclaimer": string
 }
+
+"usageFrequency" KURALI (HER ZAMAN DOLDUR):
+Bu ürünün ne sıklıkla / nasıl kullanılması gerektiğine dair kısa, pratik bir öneri yaz
+(örn. "Haftada 2-3 kez, akşam temizlenmiş cilde ince bir tabaka halinde uygulanır. Cilt
+tahrişi belirtisi görürsen sıklığı azalt." veya "Günde 2 kez, sabah ve akşam, temiz cilde
+uygulanır."). Ürün kategorisine ve içeriğine göre makul, genel bilinen kullanım pratiğine
+dayan. EN FAZLA 35 kelime.
+
+"personalizedNote" KURALI:
+Bu alan SADECE aşağıda "KULLANICI PROFİLİ" bilgisi verilmişse doldurulur. Profil verilmemişse
+"personalizedNote" için boş string ("") döndür — hiçbir şey uydurma.
+Profil verilmişse: kullanıcının belirttiği alerjilere bu üründe rastladın mı (varsa hangi
+bileşen(ler) yüzünden, AÇIKÇA ve isim vererek uyar), kullanıcının hedefleriyle (nemlendirme,
+doğallık, anti-aging, akne kontrolü vb.) bu ürün ne kadar uyumlu, cilt tipine uygun mu — bunları
+tek, kişiye hitap eden (sen dilinde), EN FAZLA 50 kelimelik bir paragrafta özetle. Örnek:
+"Belirttiğin parfüm alerjine bu üründe Geraniol ve Hexyl Cinnamal ile rastlıyoruz — dikkatli ol.
+Doğallık tercihine de tam uymuyor, sentetik polimer (PVA Copolymer) içeriyor."
 
 "ingredients" İÇİN EN ÖNEMLİ KURAL — TAM LİSTE İSTİYORUZ:
 Etikette/içerik listesinde okuyabildiğin HER BİLEŞENİ, etiketteki sırasıyla, TEK TEK yaz.
@@ -37,6 +56,8 @@ DİĞER UZUNLUK KURALLARI — bunlara uymazsan yanıt yarıda kesilir:
 - "positiveHighlights": tam 3 madde, her biri en fazla 15 kelime.
 - "negativeHighlights": tam 3 madde, her biri en fazla 15 kelime.
 - "sampleQuotes": tam 3 örnek (1 olumlu, 1 olumsuz, 1 nötr), her biri en fazla 20 kelime.
+- "usageFrequency": EN FAZLA 35 kelime.
+- "personalizedNote": EN FAZLA 50 kelime (profil yoksa boş string).
 - "disclaimer": EN FAZLA 30 kelime.
 
 reviewSummary için içerik kuralları:
@@ -150,10 +171,37 @@ function buildKnownProductUserPrompt({ productName, brand, ingredientsText }) {
   ].join("\n");
 }
 
+// Kullanıcı profilini (cilt tipi/hedefler/alerjiler) modele okutulacak bir
+// metin bloğuna çevirir. Profil boşsa/hiçbir alan doldurulmamışsa null döner
+// — bu durumda analyze.js hiçbir şey eklemez, model de personalizedNote'u
+// boş bırakır (yukarıdaki kurala göre).
+function buildProfileBlock(profile) {
+  if (!profile) return null;
+  const parts = [];
+  if (profile.skinType) parts.push(`Cilt tipi: ${profile.skinType}`);
+  if (Array.isArray(profile.goals) && profile.goals.length) {
+    parts.push(`Hedefleri/istekleri: ${profile.goals.join(", ")}`);
+  }
+  const allergyList = [
+    ...(Array.isArray(profile.allergies) ? profile.allergies : []),
+    ...(profile.otherAllergyNote ? [profile.otherAllergyNote] : []),
+  ];
+  if (allergyList.length) {
+    parts.push(`Bilinen alerjileri/duyarlılıkları: ${allergyList.join(", ")}`);
+  }
+  if (!parts.length) return null;
+  return [
+    "",
+    "KULLANICI PROFİLİ (bu kişiye özel değerlendirme için — personalizedNote alanını buna göre doldur):",
+    ...parts.map((p) => `- ${p}`),
+  ].join("\n");
+}
+
 module.exports = {
   SYSTEM_PROMPT,
   USER_PROMPT,
   USER_PROMPT_TWO_IMAGES,
   KNOWN_PRODUCT_SYSTEM_PROMPT,
   buildKnownProductUserPrompt,
+  buildProfileBlock,
 };

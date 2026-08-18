@@ -7,4 +7,5 @@ export type RootStackParamList = {
   Result: { analysis: ProductAnalysis };
   History: undefined;
   Paywall: undefined;
+  Profile: undefined;
 };

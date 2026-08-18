@@ -17,7 +17,7 @@ const PORT = process.env.PORT || 3000;
 // değişiklik yapıp Render'a gönderdikten sonra tarayıcıda /health adresine
 // bakınca burada yazan değeri görüyorsan yeni kod canlıdır. Görmüyorsan
 // deploy tamamlanmamıştır (ya da hâlâ sürüyordur).
-const APP_VERSION = "2026-08-18-streaming-fix";
+const APP_VERSION = "2026-08-18-kisisel-profil-kullanim-sikligi";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -41,13 +41,36 @@ app.post("/analyze", uploadFields, async (req, res) => {
   try {
     const barcode = (req.body && req.body.barcode ? String(req.body.barcode) : "").trim();
 
+    // Kullanıcı profili (cilt tipi/hedefler/alerjiler) — client'tan JSON
+    // string olarak gelir, sadece kullanıcı Profilim ekranını doldurduysa
+    // gönderilir. Bozuksa/parse edilemezse sessizce yok sayıyoruz — profil
+    // olmadan da normal (kişiselleştirilmemiş) analiz çalışmaya devam eder.
+    let profile;
+    if (req.body && req.body.profile) {
+      try {
+        profile = JSON.parse(req.body.profile);
+      } catch (err) {
+        console.warn("[/analyze] profile alanı parse edilemedi, yok sayılıyor:", err.message);
+      }
+    }
+
     // 1) Barkod varsa: önce paylaşımlı önbelleğe bak. Daha önce biri bu ürünü
     //    taradıysa, AI'ye hiç sormadan aynı sonucu anında döneriz.
+    //    ÖNEMLİ: personalizedNote kişiye özel (kullanıcının alerjilerini vb.
+    //    içerebilir) — önbellek TÜM kullanıcılar arasında paylaşıldığı için
+    //    cache'ten dönen sonuçta personalizedNote'u boşaltıyoruz, yoksa bir
+    //    kullanıcının profil bilgisi başka bir kullanıcıya sızmış olur.
     if (barcode) {
       const cached = getCachedProduct(barcode);
       if (cached) {
         console.log(`[/analyze] Önbellek isabeti: ${barcode}`);
-        return res.json({ id: randomUUID(), createdAt: new Date().toISOString(), ...cached, source: "cache" });
+        return res.json({
+          id: randomUUID(),
+          createdAt: new Date().toISOString(),
+          ...cached,
+          personalizedNote: "",
+          source: "cache",
+        });
       }
     }
 
@@ -59,12 +82,15 @@ app.post("/analyze", uploadFields, async (req, res) => {
       if (known && (known.productName || known.ingredientsText)) {
         let result;
         try {
-          result = await analyzeKnownProduct(known);
+          result = await analyzeKnownProduct(known, profile);
         } catch (err) {
           console.error("[/analyze] Barkod tabanlı AI analizi başarısız, mock veri dönülüyor:", err.message);
           result = { ...getMockAnalysis(), source: "ai+barcode" };
         }
-        saveCachedProduct(barcode, result);
+        // Önbelleğe personalizedNote OLMADAN yazıyoruz (yukarıdaki not) —
+        // ama bu isteği yapan kullanıcıya kendi kişiselleştirilmiş sonucunu
+        // (varsa) yine de dönüyoruz.
+        saveCachedProduct(barcode, { ...result, personalizedNote: "" });
         return res.json({ id: randomUUID(), createdAt: new Date().toISOString(), ...result, barcode });
       }
       console.log(`[/analyze] Barkod Open Beauty Facts'te bulunamadı, fotoğraf+AI akışına düşülüyor: ${barcode}`);
@@ -84,7 +110,8 @@ app.post("/analyze", uploadFields, async (req, res) => {
         imageFile.buffer,
         mimeType,
         imageBackFile?.buffer,
-        imageBackFile?.mimetype || "image/jpeg"
+        imageBackFile?.mimetype || "image/jpeg",
+        profile
       );
     } catch (err) {
       console.error("[/analyze] AI analizi başarısız, mock veri dönülüyor:", err.message);

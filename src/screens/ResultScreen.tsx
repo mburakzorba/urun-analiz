@@ -83,9 +83,22 @@ export default function ResultScreen({ route, navigation }: Props) {
           <VerdictCard title="Kullanıcı Görüşü" verdict={satisfactionVerdict(analysis.reviewSummary.averageSentiment)} />
         </View>
 
+        {!!analysis.personalizedNote && (
+          <View style={styles.personalizedCard}>
+            <Text style={styles.personalizedTitle}>✨ Sana Özel Değerlendirme</Text>
+            <Text style={styles.personalizedText}>{analysis.personalizedNote}</Text>
+          </View>
+        )}
+
         <Section title="Gerçekten İşe Yarıyor mu?">
           <Text style={styles.paragraph}>{analysis.effectivenessSummary}</Text>
         </Section>
+
+        {!!analysis.usageFrequency && (
+          <Section title="⏱ Ne Sıklıkla Kullanmalısın?">
+            <Text style={styles.paragraph}>{analysis.usageFrequency}</Text>
+          </Section>
+        )}
 
         {analysis.harmfulIngredients.length > 0 && (
           <Section title="⚠️ Dikkat Edilmesi Gereken Bileşenler">
@@ -196,6 +209,16 @@ const styles = StyleSheet.create({
   },
   verdictTitle: { color: colors.textMuted, fontSize: 11, textAlign: "center" },
   verdictLabel: { fontSize: 12, fontWeight: "800", textAlign: "center", marginTop: 4 },
+  personalizedCard: {
+    backgroundColor: "rgba(96, 165, 250, 0.1)",
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.accent,
+  },
+  personalizedTitle: { color: colors.accent, fontSize: 14, fontWeight: "700", marginBottom: 4 },
+  personalizedText: { color: colors.text, fontSize: 13, lineHeight: 19 },
   section: {
     backgroundColor: colors.card,
     borderRadius: radius.lg,

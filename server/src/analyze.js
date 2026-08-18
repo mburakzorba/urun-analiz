@@ -5,6 +5,7 @@ const {
   USER_PROMPT_TWO_IMAGES,
   KNOWN_PRODUCT_SYSTEM_PROMPT,
   buildKnownProductUserPrompt,
+  buildProfileBlock,
 } = require("./prompt");
 const { getMockAnalysis } = require("./mockAnalysis");
 
@@ -160,6 +161,8 @@ function withSafeDefaults(parsed) {
       negativeHighlights: Array.isArray(parsed.reviewSummary?.negativeHighlights) ? parsed.reviewSummary.negativeHighlights : [],
       sampleQuotes: Array.isArray(parsed.reviewSummary?.sampleQuotes) ? parsed.reviewSummary.sampleQuotes : [],
     },
+    usageFrequency: parsed.usageFrequency || "",
+    personalizedNote: parsed.personalizedNote || "",
     disclaimer:
       parsed.disclaimer ||
       "Bu analiz yapay zeka tarafından üretilmiştir ve tıbbi tavsiye yerine geçmez; ayrıca yanıt beklenenden uzun olduğu için bazı bölümler eksik olabilir.",
@@ -182,7 +185,7 @@ function extractTextBlock(response) {
  *   okuması, ürünü ilk görselden (marka/ambalaj) teyit etmesi istenir.
  * Döner: ProductAnalysis şekline uygun obje (id/createdAt/imageUri olmadan)
  */
-async function analyzeProductImage(imageBuffer, mimeType, imageBackBuffer, backMimeType) {
+async function analyzeProductImage(imageBuffer, mimeType, imageBackBuffer, backMimeType, profile) {
   const anthropic = getClient();
 
   if (!anthropic) {
@@ -207,7 +210,11 @@ async function analyzeProductImage(imageBuffer, mimeType, imageBackBuffer, backM
     });
   }
 
-  content.push({ type: "text", text: hasBackImage ? USER_PROMPT_TWO_IMAGES : USER_PROMPT });
+  // Kullanıcı profili varsa (cilt tipi/hedefler/alerjiler), kullanıcı metnine
+  // ekliyoruz ki model personalizedNote'u buna göre doldursun.
+  const profileBlock = buildProfileBlock(profile);
+  const baseUserText = hasBackImage ? USER_PROMPT_TWO_IMAGES : USER_PROMPT;
+  content.push({ type: "text", text: profileBlock ? baseUserText + "\n" + profileBlock : baseUserText });
 
   // ÖNEMLİ: max_tokens: 32000 gibi yüksek bir değerle normal (streaming
   // olmayan) messages.create() çağrısı yaparsak, Anthropic SDK'sı "bu istek
@@ -240,7 +247,7 @@ async function analyzeProductImage(imageBuffer, mimeType, imageBackBuffer, backM
  *
  * productInfo: { productName, brand, ingredientsText }
  */
-async function analyzeKnownProduct(productInfo) {
+async function analyzeKnownProduct(productInfo, profile) {
   const anthropic = getClient();
 
   if (!anthropic) {
@@ -253,6 +260,9 @@ async function analyzeKnownProduct(productInfo) {
     };
   }
 
+  const profileBlock = buildProfileBlock(profile);
+  const userText = buildKnownProductUserPrompt(productInfo) + (profileBlock ? "\n" + profileBlock : "");
+
   // (Yukarıdaki analyzeProductImage'daki aynı not geçerli — yüksek max_tokens
   // ile streaming olmadan istek atarsak SDK "Streaming is required..." hatası
   // veriyor. Bunu Render loglarında tam olarak bu fonksiyon için gördük.)
@@ -260,7 +270,7 @@ async function analyzeKnownProduct(productInfo) {
     model: MODEL,
     max_tokens: 32000,
     system: KNOWN_PRODUCT_SYSTEM_PROMPT,
-    messages: [{ role: "user", content: buildKnownProductUserPrompt(productInfo) }],
+    messages: [{ role: "user", content: userText }],
   });
   const response = await stream.finalMessage();
 

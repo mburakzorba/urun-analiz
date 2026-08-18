@@ -1,4 +1,4 @@
-import { ProductAnalysis } from "../types";
+import { ProductAnalysis, UserProfile } from "../types";
 import { getMockAnalysis } from "./mockAnalysis";
 
 // Backend adresini .env dosyasından okuyoruz (bkz. .env.example).
@@ -16,7 +16,8 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL;
 export async function analyzeProductPhoto(
   imageUri: string,
   barcode?: string,
-  backImageUri?: string
+  backImageUri?: string,
+  profile?: UserProfile
 ): Promise<ProductAnalysis> {
   if (!API_URL) {
     console.warn(
@@ -54,6 +55,13 @@ export async function analyzeProductPhoto(
   }
   if (barcode) {
     formData.append("barcode", barcode);
+  }
+  // Kullanıcı profilini (cilt tipi/hedefler/alerjiler) doldurduysa, backend'e
+  // JSON string olarak gönderiyoruz — AI bunu kullanarak değerlendirmeyi
+  // kişiye özel hale getirip personalizedNote alanını dolduruyor. Profil
+  // boşsa (hiç doldurulmamışsa) hiç göndermiyoruz, backend genel analiz yapar.
+  if (profile && profile.completedAt) {
+    formData.append("profile", JSON.stringify(profile));
   }
 
   // ÖNEMLİ: Content-Type header'ını BURADA elle set ETMİYORUZ. FormData

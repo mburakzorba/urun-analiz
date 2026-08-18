@@ -6,6 +6,7 @@ import { RootStackParamList } from "../navigation/types";
 import { colors, spacing, radius } from "../theme";
 import { useSubscription } from "../context/SubscriptionContext";
 import { useHistory } from "../context/HistoryContext";
+import { useUserProfile } from "../context/UserProfileContext";
 import { shortHealthVerdict } from "../utils/verdict";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
@@ -13,17 +14,32 @@ type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 export default function HomeScreen({ navigation }: Props) {
   const { state, remainingFreeScans, canScan } = useSubscription();
   const { history } = useHistory();
+  const { isProfileEmpty } = useUserProfile();
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Ürün Analiz</Text>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <Text style={styles.title}>Ürün Analiz</Text>
+            <TouchableOpacity style={styles.profileBtn} onPress={() => navigation.navigate("Profile")}>
+              <Text style={styles.profileBtnText}>👤 Profilim</Text>
+            </TouchableOpacity>
+          </View>
           <Text style={styles.subtitle}>
             Kişisel bakım ürününün fotoğrafını çek; içeriğini, gerçekten işe yarayıp yaramadığını,
             zararlı/faydalı yönlerini ve kullanıcı yorumlarını öğren.
           </Text>
         </View>
+
+        {isProfileEmpty && (
+          <TouchableOpacity style={styles.nudgeCard} onPress={() => navigation.navigate("Profile")}>
+            <Text style={styles.nudgeTitle}>Profilini tamamla</Text>
+            <Text style={styles.nudgeText}>
+              Cilt tipini, hedeflerini ve alerjilerini belirt — taradığın ürünler sana özel değerlendirilsin.
+            </Text>
+          </TouchableOpacity>
+        )}
 
         <View style={styles.planCard}>
           <Text style={styles.planLabel}>{state.isPremium ? "Premium Üyelik" : "Ücretsiz Plan"}</Text>
@@ -98,6 +114,26 @@ const styles = StyleSheet.create({
   header: { marginBottom: spacing.lg },
   title: { fontSize: 30, fontWeight: "800", color: colors.text },
   subtitle: { fontSize: 15, color: colors.textMuted, marginTop: spacing.xs, lineHeight: 21 },
+  profileBtn: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    marginTop: 4,
+  },
+  profileBtnText: { color: colors.text, fontSize: 12, fontWeight: "600" },
+  nudgeCard: {
+    backgroundColor: colors.cardAlt,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.accent,
+  },
+  nudgeTitle: { color: colors.accent, fontWeight: "700", fontSize: 14 },
+  nudgeText: { color: colors.textMuted, fontSize: 12, marginTop: 2, lineHeight: 17 },
   planCard: {
     backgroundColor: colors.card,
     borderRadius: radius.lg,

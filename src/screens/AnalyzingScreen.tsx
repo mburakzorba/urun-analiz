@@ -7,6 +7,7 @@ import { colors, spacing, radius } from "../theme";
 import { analyzeProductPhoto } from "../services/analyzeProduct";
 import { useHistory } from "../context/HistoryContext";
 import { useSubscription } from "../context/SubscriptionContext";
+import { useUserProfile } from "../context/UserProfileContext";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Analyzing">;
 
@@ -30,6 +31,7 @@ export default function AnalyzingScreen({ route, navigation }: Props) {
   const { imageUri, backImageUri, barcode } = route.params;
   const { addAnalysis } = useHistory();
   const { registerScan } = useSubscription();
+  const { profile } = useUserProfile();
   const [stepIndex, setStepIndex] = useState(0);
   // Artık sadece "hata oldu" değil, hatanın GERÇEK metnini de tutuyoruz —
   // böylece ekranda ne olduğu (ağ hatası mı, 500 mü, hangi mesaj) doğrudan
@@ -46,7 +48,7 @@ export default function AnalyzingScreen({ route, navigation }: Props) {
     let cancelled = false;
     (async () => {
       try {
-        const analysis = await analyzeProductPhoto(imageUri, barcode, backImageUri);
+        const analysis = await analyzeProductPhoto(imageUri, barcode, backImageUri, profile);
         if (cancelled) return;
         await addAnalysis(analysis);
         await registerScan();
