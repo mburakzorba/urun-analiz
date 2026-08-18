@@ -194,9 +194,14 @@ function extractTextBlock(response) {
  *   olduğu arka yüzü de çektiyse ikinci görsel buraya gelir. Verilirse AI'ye
  *   iki görsel birden gönderilir ve içerik listesini bu ikinci görselden
  *   okuması, ürünü ilk görselden (marka/ambalaj) teyit etmesi istenir.
+ * userProvidedName: OPSİYONEL. Barkod yokken/okunamadığında AI markayı tanıyıp
+ *   tam ürünü/varyantı (ör. "saç dökülmesine karşı" hattı) yanlış tahmin
+ *   edebiliyor — kullanıcı ScanScreen'deki opsiyonel alana ürünün gerçek adını
+ *   yazdıysa buraya gelir. Verilirse AI'ye "productName kesin budur, tahmin
+ *   yürütme" diye açıkça söylüyoruz; içerik listesi yine fotoğraftan okunuyor.
  * Döner: ProductAnalysis şekline uygun obje (id/createdAt/imageUri olmadan)
  */
-async function analyzeProductImage(imageBuffer, mimeType, imageBackBuffer, backMimeType, profile) {
+async function analyzeProductImage(imageBuffer, mimeType, imageBackBuffer, backMimeType, profile, userProvidedName) {
   const anthropic = getClient();
 
   if (!anthropic) {
@@ -224,7 +229,15 @@ async function analyzeProductImage(imageBuffer, mimeType, imageBackBuffer, backM
   // Kullanıcı profili varsa (cilt tipi/hedefler/alerjiler), kullanıcı metnine
   // ekliyoruz ki model personalizedNote'u buna göre doldursun.
   const profileBlock = buildProfileBlock(profile);
-  const baseUserText = hasBackImage ? USER_PROMPT_TWO_IMAGES : USER_PROMPT;
+  let baseUserText = hasBackImage ? USER_PROMPT_TWO_IMAGES : USER_PROMPT;
+  if (userProvidedName && userProvidedName.trim()) {
+    baseUserText +=
+      `\n\nKULLANICI ÜRÜN ADINI KENDİSİ BELİRTTİ: Bu ürünün tam olarak "${userProvidedName.trim()}" ` +
+      "olduğunu kullanıcı yazdı — bunu KESİN doğru kabul et, \"productName\" (ve belliyse \"brand\") " +
+      "alanlarını buna göre yaz, ürünün ne olduğunu fotoğraftan AYRICA tahmin etmeye ÇALIŞMA. İçerik/" +
+      "bileşen listesini yine normal kurallara göre fotoğraftan oku (okunamıyorsa bu ürün için bilinen " +
+      "tipik formülasyonu kullan).";
+  }
   content.push({ type: "text", text: profileBlock ? baseUserText + "\n" + profileBlock : baseUserText });
 
   // ÖNEMLİ: max_tokens: 32000 gibi yüksek bir değerle normal (streaming
