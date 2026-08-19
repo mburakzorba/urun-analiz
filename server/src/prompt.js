@@ -48,8 +48,13 @@ Etikette/içerik listesinde okuyabildiğin HER BİLEŞENİ, etiketteki sırasıy
 - İsimleri etiketteki INCI yazımıyla ver.
 - Etiketin bir kısmı okunamıyorsa, okuyabildiklerini yaz ve okunamayan kısım olduğunu
   effectivenessSummary içinde belirt; okuyamadığın bileşeni UYDURMA.
-Listeyi uzun tutabilmen için açıklamaları çok kısa yaz: her "explanation" EN FAZLA 12 kelime,
-tek cümle, sıradan bileşenlerde 3-5 kelime yeter (örn. "Taşıyıcı, güvenli.").
+"explanation" alanı KULLANICININ ANLAYACAĞI, SOMUT bir fayda/işlev cümlesi olmalı — sadece
+"taşıyıcı", "çözücü", "güvenli" gibi tek kelimelik teknik/muğlak etiketlerle YETİNME. Bu bileşen
+üründe/ciltte/saçta PRATİKTE NE İŞE YARIYOR onu söyle (kötü örnek: "Çözücü, taşıyıcı, güvenli." —
+iyi örnek: "Diğer bileşenleri cilde taşıyan, zararsız baz sıvı."; kötü örnek: "Nemlendirici." —
+iyi örnek: "Cildi nemlendirip yumuşatır."). Yine de KISA tut, uzun listeyi bozma: EN FAZLA 12
+kelime, tek cümle — ama o 12 kelime içinde bile somut bir fayda/işlev bulunsun, salt bir sıfatla
+bırakma.
 
 DİĞER UZUNLUK KURALLARI — bunlara uymazsan yanıt yarıda kesilir:
 - "effectivenessSummary": EN FAZLA 90 kelime.

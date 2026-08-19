@@ -18,7 +18,7 @@ const PORT = process.env.PORT || 3000;
 // değişiklik yapıp Render'a gönderdikten sonra tarayıcıda /health adresine
 // bakınca burada yazan değeri görüyorsan yeni kod canlıdır. Görmüyorsan
 // deploy tamamlanmamıştır (ya da hâlâ sürüyordur).
-const APP_VERSION = "2026-08-19-icerik-oncelikli-tarama";
+const APP_VERSION = "2026-08-19-bilesen-aciklamalari-anlasilir";
 
 const upload = multer({
   storage: multer.memoryStorage(),
