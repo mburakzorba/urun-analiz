@@ -18,7 +18,7 @@ const PORT = process.env.PORT || 3000;
 // değişiklik yapıp Render'a gönderdikten sonra tarayıcıda /health adresine
 // bakınca burada yazan değeri görüyorsan yeni kod canlıdır. Görmüyorsan
 // deploy tamamlanmamıştır (ya da hâlâ sürüyordur).
-const APP_VERSION = "2026-08-18-kullanici-icerik-ipucu";
+const APP_VERSION = "2026-08-19-icerik-oncelikli-tarama";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -108,6 +108,11 @@ app.post("/analyze", checkAppSecret, analyzeLimiter, uploadFields, async (req, r
     const userProvidedIngredients = (
       req.body && req.body.userProvidedIngredients ? String(req.body.userProvidedIngredients) : ""
     ).trim();
+    // "Bu ürünü ne için kullanmak istiyorsun?" — o taramaya özel niyet.
+    const userIntent = (req.body && req.body.userIntent ? String(req.body.userIntent) : "").trim();
+    // İki görsel de (varsa) içerik/bileşen listesinin devamıysa (ön/arka
+    // değil) — kavisli şişe senaryosu, ScanScreen'de "Etiketin Devamı" ile eklenir.
+    const bothImagesAreIngredients = req.body && req.body.bothImagesAreIngredients === "true";
 
     // 1) Barkod varsa: önce paylaşımlı önbelleğe bak. Daha önce biri bu ürünü
     //    taradıysa, AI'ye hiç sormadan aynı sonucu anında döneriz.
@@ -177,7 +182,9 @@ app.post("/analyze", checkAppSecret, analyzeLimiter, uploadFields, async (req, r
         imageBackFile?.mimetype || "image/jpeg",
         profile,
         userProvidedName || undefined,
-        userProvidedIngredients || undefined
+        userProvidedIngredients || undefined,
+        userIntent || undefined,
+        bothImagesAreIngredients
       );
     } catch (err) {
       console.error("[/analyze] AI analizi başarısız, mock veri dönülüyor:", err.message);

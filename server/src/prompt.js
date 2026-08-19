@@ -144,6 +144,22 @@ okunamayan bir bölüm olduğunu effectivenessSummary içinde belirt.
 
 Yukarıdaki JSON şemasına uygun şekilde yanıt ver.`;
 
+// İki görsel de İÇERİK/BİLEŞEN LİSTESİ olduğunda (ön/arka değil — kavisli bir
+// şişede etiket tek karede sığmadığı için kullanıcı şişeyi döndürüp ikinci
+// bir fotoğraf daha çektiğinde) kullanılan talimat. USER_PROMPT_TWO_IMAGES'ten
+// farkı: "1. ön yüz, 2. arka yüz" ayrımı YOK, ikisi de aynı etiketin farklı
+// bölümleri — birleştirerek okunmalı.
+const USER_PROMPT_TWO_IMAGES_BOTH_INGREDIENTS = `Sana bu ürünün İÇERİK/BİLEŞEN LİSTESİNİN iki farklı
+fotoğrafı verildi (muhtemelen kavisli bir şişe/ambalaj olduğu için etiket tek karede sığmadı, kullanıcı
+şişeyi döndürüp ikinci bir fotoğraf daha çekti). Bu iki görsel AYNI etiketin farklı bölümleri — sırayla
+inceleyip, üst üste binen kısımları bir kez sayarak, İKİSİNİ BİRLEŞTİRİLMİŞ TEK BİR LİSTE gibi oku.
+Gördüğün HER bileşeni ayrı bir madde olarak yaz, listeyi kısaltma/özetleme/gruplama.
+
+Ürün adı/marka görsellerden net anlaşılmıyorsa ve kullanıcı ayrıca belirtmediyse, genel bilginden
+tanımaya çalış; hiç tanıyamıyorsan "Belirlenemedi" yaklaşımını kullan.
+
+Yukarıdaki JSON şemasına uygun şekilde yanıt ver.`;
+
 // --- Akış 2: Barkodla Open Beauty Facts'ten doğrulanmış ürün bilgisi var ---
 // Bu durumda modele fotoğraf göndermiyoruz (daha ucuz + daha güvenilir),
 // çünkü ürün adı/marka/içerik listesi zaten doğrulanmış, gerçek veri.
@@ -248,6 +264,7 @@ module.exports = {
   SYSTEM_PROMPT,
   USER_PROMPT,
   USER_PROMPT_TWO_IMAGES,
+  USER_PROMPT_TWO_IMAGES_BOTH_INGREDIENTS,
   KNOWN_PRODUCT_SYSTEM_PROMPT,
   buildKnownProductUserPrompt,
   buildProfileBlock,

@@ -3,6 +3,7 @@ const {
   SYSTEM_PROMPT,
   USER_PROMPT,
   USER_PROMPT_TWO_IMAGES,
+  USER_PROMPT_TWO_IMAGES_BOTH_INGREDIENTS,
   KNOWN_PRODUCT_SYSTEM_PROMPT,
   buildKnownProductUserPrompt,
   buildProfileBlock,
@@ -205,6 +206,14 @@ function extractTextBlock(response) {
  *   etikette yazan listeyi kendisi yazdıysa/yapıştırdıysa buraya gelir; bu
  *   durumda fotoğraftan İÇERİK okumaya çalışılmaz, bu metin DOĞRULANMIŞ veri
  *   olarak kabul edilir (OBF akışındaki ingredientsText ile aynı mantık).
+ * userIntent: OPSİYONEL. Kullanıcının "bu ürünü ne için kullanmak
+ *   istiyorsun?" sorusuna o taramaya özel verdiği yanıt (ör. "saç dökülmesi
+ *   için"). Verilirse AI'den bu amaç için ürünün gerçekten uygun olup
+ *   olmadığını açıkça değerlendirmesi istenir.
+ * bothImagesAreIngredients: OPSİYONEL. true ise imageBackBuffer bir "arka
+ *   yüz" değil, aynı içerik/bileşen etiketinin DEVAMI (kavisli şişe senaryosu)
+ *   — bu durumda iki-görsel talimatı ön/arka ayrımı yapmadan, iki fotoğrafı
+ *   tek bir liste gibi birleştirmeyi ister.
  * Döner: ProductAnalysis şekline uygun obje (id/createdAt/imageUri olmadan)
  */
 async function analyzeProductImage(
@@ -214,7 +223,9 @@ async function analyzeProductImage(
   backMimeType,
   profile,
   userProvidedName,
-  userProvidedIngredients
+  userProvidedIngredients,
+  userIntent,
+  bothImagesAreIngredients
 ) {
   const anthropic = getClient();
 
@@ -243,7 +254,9 @@ async function analyzeProductImage(
   // Kullanıcı profili varsa (cilt tipi/hedefler/alerjiler), kullanıcı metnine
   // ekliyoruz ki model personalizedNote'u buna göre doldursun.
   const profileBlock = buildProfileBlock(profile);
-  let baseUserText = hasBackImage ? USER_PROMPT_TWO_IMAGES : USER_PROMPT;
+  let baseUserText = hasBackImage
+    ? (bothImagesAreIngredients ? USER_PROMPT_TWO_IMAGES_BOTH_INGREDIENTS : USER_PROMPT_TWO_IMAGES)
+    : USER_PROMPT;
   if (userProvidedName && userProvidedName.trim()) {
     baseUserText +=
       `\n\nKULLANICI ÜRÜN ADINI KENDİSİ BELİRTTİ: Bu ürünün tam olarak "${userProvidedName.trim()}" ` +
@@ -265,6 +278,19 @@ async function analyzeProductImage(
     baseUserText +=
       " İçerik/bileşen listesini yine normal kurallara göre fotoğraftan oku (okunamıyorsa bu ürün " +
       "için bilinen tipik formülasyonu kullan).";
+  }
+  if (userIntent && userIntent.trim()) {
+    // Kayıtlı kullanıcı profilinden (varsa) bağımsız — bu SADECE bu tarama
+    // için geçerli, o anki kullanım niyeti. effectivenessSummary/
+    // personalizedNote bu amaca göre dürüst bir değerlendirme yapmalı;
+    // profile block'taki gibi personalizedNote'u ZORUNLU doldurmuyoruz (o
+    // hâlâ kayıtlı profile bağlı), ama effectivenessSummary'de mutlaka
+    // değinilmesini istiyoruz.
+    baseUserText +=
+      `\n\nKULLANICININ KULLANIM AMACI: Kullanıcı bu ürünü şunun için kullanmak istediğini belirtti: ` +
+      `"${userIntent.trim()}". "effectivenessSummary" içinde ürünün TAM OLARAK bu amaç için ne kadar ` +
+      `uygun/etkili olduğunu AÇIKÇA değerlendir — uygun değilse ya da bu amaçla ilgisizse bunu dürüstçe ` +
+      `söyle, uydurma iddiada bulunma.`;
   }
   content.push({ type: "text", text: profileBlock ? baseUserText + "\n" + profileBlock : baseUserText });
 
