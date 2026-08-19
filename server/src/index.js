@@ -18,7 +18,7 @@ const PORT = process.env.PORT || 3000;
 // değişiklik yapıp Render'a gönderdikten sonra tarayıcıda /health adresine
 // bakınca burada yazan değeri görüyorsan yeni kod canlıdır. Görmüyorsan
 // deploy tamamlanmamıştır (ya da hâlâ sürüyordur).
-const APP_VERSION = "2026-08-18-kullanici-urun-adi-ipucu";
+const APP_VERSION = "2026-08-18-kullanici-icerik-ipucu";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -102,6 +102,12 @@ app.post("/analyze", checkAppSecret, analyzeLimiter, uploadFields, async (req, r
     // akışında (aşağıdaki 3. adımda) kullanılır — barkod/OBF akışında zaten
     // doğrulanmış bir ad var, buna gerek yok.
     const userProvidedName = (req.body && req.body.userProvidedName ? String(req.body.userProvidedName) : "").trim();
+    // Kullanıcı fotoğraftan net okunamayan içerik listesini kendisi yazdıysa
+    // (ScanScreen'deki opsiyonel alan), bu da SADECE fotoğraf+AI akışında
+    // kullanılır ve fotoğraftan okumanın yerine geçer (daha güvenilir kabul edilir).
+    const userProvidedIngredients = (
+      req.body && req.body.userProvidedIngredients ? String(req.body.userProvidedIngredients) : ""
+    ).trim();
 
     // 1) Barkod varsa: önce paylaşımlı önbelleğe bak. Daha önce biri bu ürünü
     //    taradıysa, AI'ye hiç sormadan aynı sonucu anında döneriz.
@@ -170,7 +176,8 @@ app.post("/analyze", checkAppSecret, analyzeLimiter, uploadFields, async (req, r
         imageBackFile?.buffer,
         imageBackFile?.mimetype || "image/jpeg",
         profile,
-        userProvidedName || undefined
+        userProvidedName || undefined,
+        userProvidedIngredients || undefined
       );
     } catch (err) {
       console.error("[/analyze] AI analizi başarısız, mock veri dönülüyor:", err.message);

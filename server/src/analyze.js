@@ -199,9 +199,23 @@ function extractTextBlock(response) {
  *   edebiliyor — kullanıcı ScanScreen'deki opsiyonel alana ürünün gerçek adını
  *   yazdıysa buraya gelir. Verilirse AI'ye "productName kesin budur, tahmin
  *   yürütme" diye açıkça söylüyoruz; içerik listesi yine fotoğraftan okunuyor.
+ * userProvidedIngredients: OPSİYONEL. İçerik listesi fotoğraftan net
+ *   okunamıyorsa (kavisli şişe, küçük/soluk yazı vb.) AI genel/tipik bir
+ *   formülasyona düşüyor — gerçek ürünün gerçek listesi değil. Kullanıcı
+ *   etikette yazan listeyi kendisi yazdıysa/yapıştırdıysa buraya gelir; bu
+ *   durumda fotoğraftan İÇERİK okumaya çalışılmaz, bu metin DOĞRULANMIŞ veri
+ *   olarak kabul edilir (OBF akışındaki ingredientsText ile aynı mantık).
  * Döner: ProductAnalysis şekline uygun obje (id/createdAt/imageUri olmadan)
  */
-async function analyzeProductImage(imageBuffer, mimeType, imageBackBuffer, backMimeType, profile, userProvidedName) {
+async function analyzeProductImage(
+  imageBuffer,
+  mimeType,
+  imageBackBuffer,
+  backMimeType,
+  profile,
+  userProvidedName,
+  userProvidedIngredients
+) {
   const anthropic = getClient();
 
   if (!anthropic) {
@@ -234,9 +248,23 @@ async function analyzeProductImage(imageBuffer, mimeType, imageBackBuffer, backM
     baseUserText +=
       `\n\nKULLANICI ÜRÜN ADINI KENDİSİ BELİRTTİ: Bu ürünün tam olarak "${userProvidedName.trim()}" ` +
       "olduğunu kullanıcı yazdı — bunu KESİN doğru kabul et, \"productName\" (ve belliyse \"brand\") " +
-      "alanlarını buna göre yaz, ürünün ne olduğunu fotoğraftan AYRICA tahmin etmeye ÇALIŞMA. İçerik/" +
-      "bileşen listesini yine normal kurallara göre fotoğraftan oku (okunamıyorsa bu ürün için bilinen " +
-      "tipik formülasyonu kullan).";
+      "alanlarını buna göre yaz, ürünün ne olduğunu fotoğraftan AYRICA tahmin etmeye ÇALIŞMA.";
+  }
+  if (userProvidedIngredients && userProvidedIngredients.trim()) {
+    // Kullanıcı gerçek içerik listesini verdiyse, fotoğraftan İÇERİK okuma
+    // talimatını geçersiz kılıyoruz — bu metin fotoğraftan daha güvenilir
+    // (kullanıcı etikette gerçekten yazanı kopyaladı/yazdı).
+    baseUserText +=
+      "\n\nKULLANICI İÇERİK LİSTESİNİ KENDİSİ YAZDI (bu, fotoğraftaki okunaksız/eksik kısımdan DAHA " +
+      "GÜVENİLİR kabul edilmeli): \n" +
+      userProvidedIngredients.trim() +
+      "\n\"ingredients\" alanını YUKARIDAKİ metne dayanarak doldur (her bileşeni ayrı madde olarak, " +
+      "normal kurallara göre) — fotoğraftaki içerik/bileşen listesini AYRICA okumaya ÇALIŞMA, bu metin " +
+      "zaten doğrulanmış veri. Fotoğrafı sadece ürün kimliği/ambalaj teyidi için kullan.";
+  } else if (userProvidedName && userProvidedName.trim()) {
+    baseUserText +=
+      " İçerik/bileşen listesini yine normal kurallara göre fotoğraftan oku (okunamıyorsa bu ürün " +
+      "için bilinen tipik formülasyonu kullan).";
   }
   content.push({ type: "text", text: profileBlock ? baseUserText + "\n" + profileBlock : baseUserText });
 
