@@ -242,9 +242,9 @@ function buildProfileBlock(profile) {
   if (!profile) return null;
   const parts = [];
   if (profile.skinType) parts.push(`Cilt tipi: ${profile.skinType}`);
-  if (Array.isArray(profile.goals) && profile.goals.length) {
-    parts.push(`Hedefleri/istekleri: ${profile.goals.join(", ")}`);
-  }
+  // "Hedefler/istekler" (goals) alanı kaldırıldı — bu artık her taramada
+  // ayrı ayrı (KULLANICININ KULLANIM AMACI notuyla, bkz. analyze.js) soruluyor.
+  if (profile.hairType) parts.push(`Saç tipi: ${profile.hairType}`);
   const allergyList = [
     ...(Array.isArray(profile.allergies) ? profile.allergies : []),
     ...(profile.otherAllergyNote ? [profile.otherAllergyNote] : []),
