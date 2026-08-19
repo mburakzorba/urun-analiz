@@ -187,6 +187,46 @@ function extractTextBlock(response) {
   return textBlock.text;
 }
 
+// Claude Sonnet 5 fiyatlandırması — milyon token (MTok) başına USD.
+// KAYNAK: platform.claude.com/docs/en/about-claude/pricing (kontrol tarihi:
+// 19 Ağustos 2026). Anthropic fiyat değiştirirse burayı da güncellemek
+// gerekir — kod içinde otomatik güncellenmiyor.
+const PRICE_PER_MTOK_USD = {
+  input: 2, // önbelleğe alınmamış (taze) girdi token'ı
+  output: 10,
+  cacheWrite5m: 2.5, // sistem promptu ilk kez (ya da 5 dk'dan sonra tekrar) önbelleğe yazılırken
+  cacheRead: 0.2, // sistem promptu önbellekten okunduğunda (5 dk içinde art arda istek)
+};
+
+/**
+ * Her istekten sonra GERÇEK token kullanımını ve o isteğin GERÇEK USD
+ * maliyetini Render loglarına yazar. Tahmini bir hesap değil — Anthropic'in
+ * response.usage alanındaki kesin sayılardan hesaplanıyor. "Ürün başına
+ * maliyet nedir" sorusunun cevabı burada: bir tarama yaptıktan sonra Render
+ * Dashboard → Logs'ta "[analyze][maliyet]" ile başlayan satırı ara.
+ */
+function logUsageAndCost(response, label) {
+  const u = response.usage || {};
+  const inputTokens = u.input_tokens || 0;
+  const outputTokens = u.output_tokens || 0;
+  const cacheWriteTokens = u.cache_creation_input_tokens || 0;
+  const cacheReadTokens = u.cache_read_input_tokens || 0;
+
+  const costUsd =
+    (inputTokens / 1_000_000) * PRICE_PER_MTOK_USD.input +
+    (outputTokens / 1_000_000) * PRICE_PER_MTOK_USD.output +
+    (cacheWriteTokens / 1_000_000) * PRICE_PER_MTOK_USD.cacheWrite5m +
+    (cacheReadTokens / 1_000_000) * PRICE_PER_MTOK_USD.cacheRead;
+
+  console.log(
+    `[analyze][maliyet] ${label} — girdi(taze):${inputTokens} çıktı:${outputTokens} ` +
+      `cache_yazma:${cacheWriteTokens} cache_okuma:${cacheReadTokens} toplam_girdi:${
+        inputTokens + cacheWriteTokens + cacheReadTokens
+      } => $${costUsd.toFixed(4)} (bu tek istek)`
+  );
+  return costUsd;
+}
+
 /**
  * imageBuffer: Buffer (yüklenen fotoğraf — tek fotoğraf akışında ürünün
  *   önü/arkası her ikisi de olabilir; iki fotoğraf akışında bu ÖN yüzdür)
@@ -314,9 +354,7 @@ async function analyzeProductImage(
   if (response.stop_reason === "max_tokens") {
     console.warn("[analyze] Model yanıtı max_tokens sınırında kesildi (görsel analiz).");
   }
-  if (response.usage?.cache_read_input_tokens) {
-    console.log(`[analyze] Prompt cache isabeti: ${response.usage.cache_read_input_tokens} token indirimli okundu.`);
-  }
+  logUsageAndCost(response, "analyzeProductImage (fotoğraf analizi)");
   const parsed = extractJson(extractTextBlock(response));
   return { ...withSafeDefaults(parsed), source: "ai" };
 }
@@ -378,9 +416,7 @@ async function analyzeKnownProduct(productInfo, profile, imageBuffer, mimeType) 
   if (response.stop_reason === "max_tokens") {
     console.warn("[analyze] Model yanıtı max_tokens sınırında kesildi (barkod tabanlı analiz).");
   }
-  if (response.usage?.cache_read_input_tokens) {
-    console.log(`[analyze] Prompt cache isabeti: ${response.usage.cache_read_input_tokens} token indirimli okundu.`);
-  }
+  logUsageAndCost(response, "analyzeKnownProduct (barkod/bilinen ürün analizi)");
   const parsed = extractJson(extractTextBlock(response));
   return { ...withSafeDefaults(parsed), source: "ai+barcode" };
 }
