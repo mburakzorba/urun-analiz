@@ -382,6 +382,12 @@ async function analyzeProductImage(
   const stream = anthropic.messages.stream({
     model: MODEL,
     max_tokens: 32000,
+    // temperature: 0 — VARSAYILAN 1.0 rastgelelik seviyesindeydi. Aynı ürünü
+    // iki kez taradığımızda (neredeyse aynı fotoğrafla) modelin farklı risk
+    // sınıflandırması yapması buradan kaynaklanıyordu — bu bir sınıflandırma/
+    // karar işi, yaratıcı yazı değil, o yüzden 0'a çekip modelin "en olası"
+    // cevabı tutarlı şekilde vermesini istiyoruz (20 Ağustos 2026).
+    temperature: 0,
     system: cachedSystemPrompt(SYSTEM_PROMPT),
     messages: [{ role: "user", content }],
   });
@@ -444,6 +450,8 @@ async function analyzeKnownProduct(productInfo, profile, imageBuffer, mimeType) 
   const stream = anthropic.messages.stream({
     model: MODEL,
     max_tokens: 32000,
+    // Aynı gerekçe: bkz. analyzeProductImage'daki temperature notu.
+    temperature: 0,
     system: cachedSystemPrompt(KNOWN_PRODUCT_SYSTEM_PROMPT),
     messages: [{ role: "user", content }],
   });

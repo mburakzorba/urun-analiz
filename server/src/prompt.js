@@ -24,10 +24,9 @@ const JSON_SCHEMA_BLOCK = `JSON şeması:
 
 "usageFrequency" KURALI (HER ZAMAN DOLDUR):
 Bu ürünün ne sıklıkla / nasıl kullanılması gerektiğine dair kısa, pratik bir öneri yaz
-(örn. "Haftada 2-3 kez, akşam temizlenmiş cilde ince bir tabaka halinde uygulanır. Cilt
-tahrişi belirtisi görürsen sıklığı azalt." veya "Günde 2 kez, sabah ve akşam, temiz cilde
-uygulanır."). Ürün kategorisine ve içeriğine göre makul, genel bilinen kullanım pratiğine
-dayan. EN FAZLA 35 kelime.
+(örn. "Haftada 2-3 kez, akşam temizlenmiş cilde ince bir tabaka halinde uygulanır." veya
+"Günde 2 kez, sabah ve akşam, temiz cilde uygulanır."). Ürün kategorisine ve içeriğine göre
+makul, genel bilinen kullanım pratiğine dayan. EN FAZLA 20 kelime.
 
 "personalizedNote" KURALI:
 Bu alan SADECE aşağıda "KULLANICI PROFİLİ" bilgisi verilmişse doldurulur. Profil verilmemişse
@@ -35,9 +34,8 @@ Bu alan SADECE aşağıda "KULLANICI PROFİLİ" bilgisi verilmişse doldurulur. 
 Profil verilmişse: kullanıcının belirttiği alerjilere bu üründe rastladın mı (varsa hangi
 bileşen(ler) yüzünden, AÇIKÇA ve isim vererek uyar), kullanıcının hedefleriyle (nemlendirme,
 doğallık, anti-aging, akne kontrolü vb.) bu ürün ne kadar uyumlu, cilt tipine uygun mu — bunları
-tek, kişiye hitap eden (sen dilinde), EN FAZLA 50 kelimelik bir paragrafta özetle. Örnek:
-"Belirttiğin parfüm alerjine bu üründe Geraniol ve Hexyl Cinnamal ile rastlıyoruz — dikkatli ol.
-Doğallık tercihine de tam uymuyor, sentetik polimer (PVA Copolymer) içeriyor."
+tek, kişiye hitap eden (sen dilinde), EN FAZLA 35 kelimelik bir paragrafta özetle. Örnek:
+"Belirttiğin parfüm alerjine bu üründe Geraniol ve Hexyl Cinnamal ile rastlıyoruz — dikkatli ol."
 
 "ingredients" İÇİN EN ÖNEMLİ KURAL — TAM LİSTE İSTİYORUZ:
 Etikette/içerik listesinde okuyabildiğin HER BİLEŞENİ, etiketteki sırasıyla, TEK TEK yaz.
@@ -57,13 +55,13 @@ kelime, tek cümle — ama o 12 kelime içinde bile somut bir fayda/işlev bulun
 bırakma.
 
 DİĞER UZUNLUK KURALLARI — bunlara uymazsan yanıt yarıda kesilir:
-- "effectivenessSummary": EN FAZLA 90 kelime.
-- "positiveHighlights": tam 3 madde, her biri en fazla 15 kelime.
-- "negativeHighlights": tam 3 madde, her biri en fazla 15 kelime.
-- "sampleQuotes": tam 3 örnek (1 olumlu, 1 olumsuz, 1 nötr), her biri en fazla 20 kelime.
-- "usageFrequency": EN FAZLA 35 kelime.
-- "personalizedNote": EN FAZLA 50 kelime (profil yoksa boş string).
-- "disclaimer": EN FAZLA 30 kelime.
+- "effectivenessSummary": EN FAZLA 55 kelime.
+- "positiveHighlights": tam 3 madde, her biri en fazla 10 kelime.
+- "negativeHighlights": tam 3 madde, her biri en fazla 10 kelime.
+- "sampleQuotes": tam 3 örnek (1 olumlu, 1 olumsuz, 1 nötr), her biri en fazla 12 kelime.
+- "usageFrequency": EN FAZLA 20 kelime.
+- "personalizedNote": EN FAZLA 35 kelime (profil yoksa boş string).
+- "disclaimer": EN FAZLA 15 kelime.
 
 reviewSummary için içerik kuralları:
 - positiveHighlights/negativeHighlights'ta kullanıcıların SOMUT OLARAK neyi beğendiğini/
