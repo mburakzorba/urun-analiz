@@ -18,7 +18,7 @@ const PORT = process.env.PORT || 3000;
 // değişiklik yapıp Render'a gönderdikten sonra tarayıcıda /health adresine
 // bakınca burada yazan değeri görüyorsan yeni kod canlıdır. Görmüyorsan
 // deploy tamamlanmamıştır (ya da hâlâ sürüyordur).
-const APP_VERSION = "2026-08-19-maliyet-dusurme";
+const APP_VERSION = "2026-08-20-model-fiyat-tablosu";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -182,8 +182,17 @@ app.post("/analyze", checkAppSecret, analyzeLimiter, uploadFields, async (req, r
     // azaltmak için. Kullanıcı bu alanı boş bıraktıysa (opsiyonel olduğu
     // için sık olacaktır) önbellek hiç devreye girmez — normal AI analizi
     // çalışmaya devam eder, sadece o taramada tasarruf olmaz.
-    const productKey =
-      userProvidedName && userProvidedName.length >= 8 ? `name:${normalizeProductKey(userProvidedName)}` : null;
+    //
+    // GÜNCELLEME (20 Ağustos 2026): İlk sürümde eşik SADECE 8 karakterdi —
+    // bu, "Axe Parfüm" gibi kısa/genel bir isimle FARKLI iki varyantın
+    // (ör. iki ayrı Axe kokusu) yanlışlıkla aynı önbellek kaydına düşme
+    // riskini yeterince azaltmıyordu. Şimdi HEM en az 12 karakter HEM en az
+    // 2 kelime şartı arıyoruz — kullanıcı gerçekten "marka + tam ürün adı"
+    // yazdıysa (placeholder'da istediğimiz gibi) devreye girer, tek
+    // kelimelik/kısa bir ipucuyla asla girmez.
+    const isSpecificEnoughForCache =
+      !!userProvidedName && userProvidedName.length >= 12 && userProvidedName.trim().split(/\s+/).length >= 2;
+    const productKey = isSpecificEnoughForCache ? `name:${normalizeProductKey(userProvidedName)}` : null;
 
     if (productKey) {
       const cachedByName = getCachedProduct(productKey);

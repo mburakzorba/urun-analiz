@@ -200,23 +200,45 @@ function extractTextBlock(response) {
   return textBlock.text;
 }
 
-// Claude Sonnet 5 fiyatlandırması — milyon token (MTok) başına USD.
+// Model bazlı fiyatlandırma — milyon token (MTok) başına USD, SADECE taze
+// girdi/çıktı için (input/output). cache_write/cache_read bunlardan sabit bir
+// çarpanla türetiliyor (Anthropic'in tüm modellerde kullandığı aynı oran:
+// 1 saatlik cache yazma = taze girdinin 2 katı, cache okuma = taze girdinin
+// onda biri) — bkz. getPricingFor() aşağıda.
 // KAYNAK: platform.claude.com/docs/en/about-claude/pricing (kontrol tarihi:
-// 19 Ağustos 2026). Anthropic fiyat değiştirirse burayı da güncellemek
-// gerekir — kod içinde otomatik güncellenmiyor.
-const PRICE_PER_MTOK_USD = {
-  input: 2, // önbelleğe alınmamış (taze) girdi token'ı
-  output: 10,
-  cacheWrite1h: 4, // sistem promptu ilk kez (ya da 1 saatten sonra tekrar) önbelleğe yazılırken — bkz. cachedSystemPrompt() notu
-  cacheRead: 0.2, // sistem promptu önbellekten okunduğunda (1 saat içinde art arda istek)
+// 20 Ağustos 2026). Anthropic fiyat değiştirirse ya da yeni bir model
+// denenirse burayı da güncellemek gerekir — kod içinde otomatik güncellenmiyor.
+//
+// NOT (20 Ağustos 2026 — maliyet/model karşılaştırması): server/.env'de
+// ANTHROPIC_MODEL değişkenini "claude-haiku-4-5" yaparsan (kod değişikliği
+// GEREKMEZ, MODEL sabiti zaten process.env.ANTHROPIC_MODEL'i okuyor), Haiku
+// Sonnet'in TAM YARI fiyatına çalışır (hem girdi hem çıktı). Bu tabloda her
+// iki modelin de fiyatı tanımlı, hangisini kullanırsan kullan log doğru $
+// hesaplar — yanlışlıkla Sonnet fiyatından Haiku maliyeti hesaplamış olmayız.
+const PRICE_TABLE_PER_MTOK_USD = {
+  "claude-sonnet-5": { input: 2, output: 10 },
+  "claude-haiku-4-5": { input: 1, output: 5 },
+  "claude-haiku-4-5-20251001": { input: 1, output: 5 },
 };
+const DEFAULT_PRICING = PRICE_TABLE_PER_MTOK_USD["claude-sonnet-5"];
+
+function getPricingFor(model) {
+  const base = PRICE_TABLE_PER_MTOK_USD[model] || DEFAULT_PRICING;
+  return {
+    input: base.input,
+    output: base.output,
+    cacheWrite1h: base.input * 2, // bkz. cachedSystemPrompt() notu
+    cacheRead: base.input * 0.1,
+  };
+}
 
 /**
- * Her istekten sonra GERÇEK token kullanımını ve o isteğin GERÇEK USD
- * maliyetini Render loglarına yazar. Tahmini bir hesap değil — Anthropic'in
- * response.usage alanındaki kesin sayılardan hesaplanıyor. "Ürün başına
- * maliyet nedir" sorusunun cevabı burada: bir tarama yaptıktan sonra Render
- * Dashboard → Logs'ta "[analyze][maliyet]" ile başlayan satırı ara.
+ * Her istekten sonra GERÇEK token kullanımını, HANGİ MODELİN kullanıldığını
+ * ve o isteğin GERÇEK USD maliyetini Render loglarına yazar. Tahmini bir
+ * hesap değil — Anthropic'in response.usage alanındaki kesin sayılardan
+ * hesaplanıyor. "Ürün başına maliyet nedir" sorusunun cevabı burada: bir
+ * tarama yaptıktan sonra Render Dashboard → Logs'ta "[analyze][maliyet]" ile
+ * başlayan satırı ara.
  */
 function logUsageAndCost(response, label) {
   const u = response.usage || {};
@@ -224,15 +246,16 @@ function logUsageAndCost(response, label) {
   const outputTokens = u.output_tokens || 0;
   const cacheWriteTokens = u.cache_creation_input_tokens || 0;
   const cacheReadTokens = u.cache_read_input_tokens || 0;
+  const pricing = getPricingFor(MODEL);
 
   const costUsd =
-    (inputTokens / 1_000_000) * PRICE_PER_MTOK_USD.input +
-    (outputTokens / 1_000_000) * PRICE_PER_MTOK_USD.output +
-    (cacheWriteTokens / 1_000_000) * PRICE_PER_MTOK_USD.cacheWrite1h +
-    (cacheReadTokens / 1_000_000) * PRICE_PER_MTOK_USD.cacheRead;
+    (inputTokens / 1_000_000) * pricing.input +
+    (outputTokens / 1_000_000) * pricing.output +
+    (cacheWriteTokens / 1_000_000) * pricing.cacheWrite1h +
+    (cacheReadTokens / 1_000_000) * pricing.cacheRead;
 
   console.log(
-    `[analyze][maliyet] ${label} — girdi(taze):${inputTokens} çıktı:${outputTokens} ` +
+    `[analyze][maliyet] ${label} [model:${MODEL}] — girdi(taze):${inputTokens} çıktı:${outputTokens} ` +
       `cache_yazma:${cacheWriteTokens} cache_okuma:${cacheReadTokens} toplam_girdi:${
         inputTokens + cacheWriteTokens + cacheReadTokens
       } => $${costUsd.toFixed(4)} (bu tek istek)`
