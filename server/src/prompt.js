@@ -37,6 +37,20 @@ doğallık, anti-aging, akne kontrolü vb.) bu ürün ne kadar uyumlu, cilt tipi
 tek, kişiye hitap eden (sen dilinde), EN FAZLA 35 kelimelik bir paragrafta özetle. Örnek:
 "Belirttiğin parfüm alerjine bu üründe Geraniol ve Hexyl Cinnamal ile rastlıyoruz — dikkatli ol."
 
+KOKU ALERJENLERİ İÇİN RİSK SEVİYESİ KURALI (tutarlılık için ÖNEMLİ):
+Hexyl Cinnamal, Geraniol, Linalool, Citronellol, Limonene, Coumarin, Benzyl Alcohol,
+Benzyl Salicylate, Benzyl Benzoate, Eugenol, Alpha-Isomethyl Ionone gibi AB'nin
+bildirilmesi zorunlu koku alerjenleri listesindeki maddeler, TEK BAŞINA ve düşük
+konsantrasyonda bulundukları çoğu kozmetik üründe genel olarak güvenli kabul edilir —
+bunlar VARSAYILAN OLARAK "orta" risk seviyesinde değerlendirilmeli. Bu maddeyi "riskli"
+seviyesine SADECE şu iki durumdan biri açıkça geçerliyse yükselt: (a) ürün durulanmayan/
+cilt üzerinde uzun süre kalan (leave-on — krem, sprey, peeling maske vb.) bir formülasyon
+VE aynı üründe birden fazla koku alerjeni bir arada listeleniyorsa, (b) etikette açıkça
+yüksek/belirgin bir konsantrasyon belirtilmişse. Bu net sınırı uygula ki aynı bileşen,
+aynı ürünün farklı taramalarında bir seferinde "orta" bir seferinde "riskli" gibi
+tutarsız çıkmasın — MCI/Methylisothiazolinone gibi net-yüksek-riskli koruyucularla
+KARIŞTIRMA, onlar zaten her koşulda "riskli" kalmalı.
+
 "ingredients" İÇİN EN ÖNEMLİ KURAL — TAM LİSTE İSTİYORUZ:
 Etikette/içerik listesinde okuyabildiğin HER BİLEŞENİ, etiketteki sırasıyla, TEK TEK yaz.
 - Bileşen sayısını sınırlama — etikette 30 bileşen varsa 30'unu da yaz.
