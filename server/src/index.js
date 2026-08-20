@@ -12,13 +12,24 @@ const { lookupBarcode } = require("./openBeautyFacts");
 const { getCachedProduct, saveCachedProduct, normalizeProductKey } = require("./productCache");
 
 const app = express();
+// Render (ve çoğu barındırma servisi), istekleri kendi ters proxy'sinden
+// geçirip bize X-Forwarded-For header'ıyla gerçek istemci IP'sini iletir.
+// Express varsayılan olarak buna güvenmiyor ("trust proxy" kapalı) — bu
+// yüzden her başlangıçta Render loglarında express-rate-limit'ten bir
+// ValidationError uyarısı görüyorduk. Bu, uygulamayı ÇÖKERTMEYEN bir uyarıydı
+// ama pratikte aşağıdaki analyzeLimiter'ın (IP başına dakikada 12 istek)
+// tüm kullanıcıları Render'ın proxy IP'si üzerinden TEK bir "kullanıcı" gibi
+// görme riski vardı — yani limit gerçek kullanıcı bazında değil, yanlış
+// hesaplanabilirdi. "1" değeri, en yakın (ilk) proxy'ye güvenmemizi sağlıyor
+// — Render'ın kendi proxy zincirine tam uyumlu (20 Ağustos 2026).
+app.set("trust proxy", 1);
 const PORT = process.env.PORT || 3000;
 
 // Deploy'un gerçekten geçtiğini anlamak için sürüm etiketi. Kodda bir
 // değişiklik yapıp Render'a gönderdikten sonra tarayıcıda /health adresine
 // bakınca burada yazan değeri görüyorsan yeni kod canlıdır. Görmüyorsan
 // deploy tamamlanmamıştır (ya da hâlâ sürüyordur).
-const APP_VERSION = "2026-08-20-koku-alerjeni-kurali";
+const APP_VERSION = "2026-08-20-trust-proxy-duzeltmesi";
 
 const upload = multer({
   storage: multer.memoryStorage(),
