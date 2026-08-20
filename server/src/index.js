@@ -9,7 +9,7 @@ const { randomUUID } = require("crypto");
 const { analyzeProductImage, analyzeKnownProduct } = require("./analyze");
 const { getMockAnalysis } = require("./mockAnalysis");
 const { lookupBarcode } = require("./openBeautyFacts");
-const { getCachedProduct, saveCachedProduct } = require("./productCache");
+const { getCachedProduct, saveCachedProduct, normalizeProductKey } = require("./productCache");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -18,7 +18,7 @@ const PORT = process.env.PORT || 3000;
 // değişiklik yapıp Render'a gönderdikten sonra tarayıcıda /health adresine
 // bakınca burada yazan değeri görüyorsan yeni kod canlıdır. Görmüyorsan
 // deploy tamamlanmamıştır (ya da hâlâ sürüyordur).
-const APP_VERSION = "2026-08-19-maliyet-loglama";
+const APP_VERSION = "2026-08-19-maliyet-dusurme";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -121,9 +121,9 @@ app.post("/analyze", checkAppSecret, analyzeLimiter, uploadFields, async (req, r
     //    cache'ten dönen sonuçta personalizedNote'u boşaltıyoruz, yoksa bir
     //    kullanıcının profil bilgisi başka bir kullanıcıya sızmış olur.
     if (barcode) {
-      const cached = getCachedProduct(barcode);
+      const cached = getCachedProduct(`bc:${barcode}`);
       if (cached) {
-        console.log(`[/analyze] Önbellek isabeti: ${barcode}`);
+        console.log(`[/analyze] Önbellek isabeti (barkod): ${barcode}`);
         return res.json({
           id: randomUUID(),
           createdAt: new Date().toISOString(),
@@ -159,13 +159,46 @@ app.post("/analyze", checkAppSecret, analyzeLimiter, uploadFields, async (req, r
         // Önbelleğe personalizedNote OLMADAN yazıyoruz (yukarıdaki not) —
         // ama bu isteği yapan kullanıcıya kendi kişiselleştirilmiş sonucunu
         // (varsa) yine de dönüyoruz.
-        saveCachedProduct(barcode, { ...result, personalizedNote: "" });
+        saveCachedProduct(`bc:${barcode}`, { ...result, personalizedNote: "" });
         return res.json({ id: randomUUID(), createdAt: new Date().toISOString(), ...result, barcode });
       }
       console.log(`[/analyze] Barkod Open Beauty Facts'te bulunamadı, fotoğraf+AI akışına düşülüyor: ${barcode}`);
     }
 
     // 3) Barkod yok, ya da barkod bulunamadı: mevcut fotoğraf+AI akışı.
+    //
+    // MALİYET NOTU (19 Ağustos 2026): Barkod tarama tamamen kaldırıldığından
+    // beri yukarıdaki paylaşımlı önbellek (getCachedProduct/saveCachedProduct)
+    // hiç çalışmıyordu — "barcode" değişkeni artık asla dolu gelmiyor. Bu da
+    // en büyük maliyet düşürücü mekanizmanın (aynı ürünü farklı kullanıcılar
+    // taradığında AI'ye tekrar sormamak) devre dışı kalması demekti. Barkod
+    // yerine artık kullanıcının "Bu ürün nedir?" alanına yazdığı (marka+ürün
+    // adı) metni normalize edip önbellek anahtarı olarak kullanıyoruz — aynı
+    // ürünü başka bir kullanıcı da adıyla birlikte taratırsa, AI'ye HİÇ
+    // sormadan (dolayısıyla ~$0,08 maliyeti tamamen es geçerek) aynı sonucu
+    // anında döneriz. Sadece userProvidedName YETERİNCE UZUN/SPESİFİK ise
+    // (>= 8 karakter) devreye giriyor — "şampuan" gibi genel/kısa bir isimle
+    // yanlışlıkla FARKLI ürünleri aynı önbellek kaydına düşürme riskini
+    // azaltmak için. Kullanıcı bu alanı boş bıraktıysa (opsiyonel olduğu
+    // için sık olacaktır) önbellek hiç devreye girmez — normal AI analizi
+    // çalışmaya devam eder, sadece o taramada tasarruf olmaz.
+    const productKey =
+      userProvidedName && userProvidedName.length >= 8 ? `name:${normalizeProductKey(userProvidedName)}` : null;
+
+    if (productKey) {
+      const cachedByName = getCachedProduct(productKey);
+      if (cachedByName) {
+        console.log(`[/analyze] Önbellek isabeti (ürün adı): "${userProvidedName}"`);
+        return res.json({
+          id: randomUUID(),
+          createdAt: new Date().toISOString(),
+          ...cachedByName,
+          personalizedNote: "",
+          source: "cache",
+        });
+      }
+    }
+
     const imageFile = req.files?.image?.[0];
     const imageBackFile = req.files?.imageBack?.[0];
     if (!imageFile) {
@@ -186,6 +219,12 @@ app.post("/analyze", checkAppSecret, analyzeLimiter, uploadFields, async (req, r
         userIntent || undefined,
         bothImagesAreIngredients
       );
+      // personalizedNote kişiye özel (kullanıcının profiline göre üretiliyor)
+      // — barkod akışındaki AYNI mantıkla, önbelleğe BUNU olmadan yazıyoruz,
+      // yoksa bir kullanıcının profil bilgisi (alerji vb.) başka bir
+      // kullanıcının ekranına sızmış olur. Bu isteği yapan kullanıcıya
+      // kendi (varsa) personalizedNote'unu yine de normal şekilde dönüyoruz.
+      if (productKey) saveCachedProduct(productKey, { ...result, personalizedNote: "" });
     } catch (err) {
       console.error("[/analyze] AI analizi başarısız, mock veri dönülüyor:", err.message);
       result = getMockAnalysis();

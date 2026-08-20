@@ -51,4 +51,12 @@ function saveCachedProduct(barcode, analysis) {
   fs.writeFileSync(CACHE_FILE, JSON.stringify(all, null, 2), "utf8");
 }
 
-module.exports = { getCachedProduct, saveCachedProduct };
+// Ürün ADINI (barkod değil) önbellek anahtarına çevirir — büyük/küçük harf
+// ve fazla boşluk farkları yüzünden aynı ürünün "farklı ürün" sanılıp
+// önbellek ıskalanmasını önlemek için. Türkçe karakterlere duyarlı
+// (toLocaleLowerCase("tr-TR") — "İ"/"I" harflerini doğru küçültür).
+function normalizeProductKey(name) {
+  return name.trim().toLocaleLowerCase("tr-TR").replace(/\s+/g, " ");
+}
+
+module.exports = { getCachedProduct, saveCachedProduct, normalizeProductKey };

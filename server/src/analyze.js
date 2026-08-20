@@ -177,8 +177,21 @@ function withSafeDefaults(parsed) {
 // içerik/davranış hiç değişmiyor, sadece maliyet düşüyor. cache_control
 // eklemek için system parametresini düz string yerine bir blok dizisi olarak
 // vermemiz gerekiyor.
+//
+// ttl: "1h" (varsayılan "5m" yerine): Render loglarında cache_okuma:0 /
+// cache_yazma dolu görmemizin nedeni, taramaların genelde 5 dakikadan uzun
+// aralıklarla yapılması (sen test ederken, ya da düşük trafikte gerçek
+// kullanıcılar arasında) — 5 dakikalık önbellek hiç isabet almadan sürekli
+// (normalden daha pahalı) "yazma" ücreti ödüyorduk. 1 saatlik önbellek yazma
+// ücreti biraz daha pahalı (temel fiyatın 2 katı, 5 dakikalıkta 1,25 katıydı)
+// ama aynı saat içinde yapılan 2. ve sonraki taramalarda okuma çok ucuz
+// (temel fiyatın onda biri) — birkaç ürünü art arda test ettiğin/gerçek
+// kullanıcıların yoğunlaştığı saatlerde net olarak daha ucuza geliyor. Beta
+// header gerekmiyor, platform.claude.com/docs/en/build-with-claude/prompt-caching
+// sayfasında standart bir özellik olarak dokümante edilmiş (kontrol: 19
+// Ağustos 2026).
 function cachedSystemPrompt(text) {
-  return [{ type: "text", text, cache_control: { type: "ephemeral" } }];
+  return [{ type: "text", text, cache_control: { type: "ephemeral", ttl: "1h" } }];
 }
 
 function extractTextBlock(response) {
@@ -194,8 +207,8 @@ function extractTextBlock(response) {
 const PRICE_PER_MTOK_USD = {
   input: 2, // önbelleğe alınmamış (taze) girdi token'ı
   output: 10,
-  cacheWrite5m: 2.5, // sistem promptu ilk kez (ya da 5 dk'dan sonra tekrar) önbelleğe yazılırken
-  cacheRead: 0.2, // sistem promptu önbellekten okunduğunda (5 dk içinde art arda istek)
+  cacheWrite1h: 4, // sistem promptu ilk kez (ya da 1 saatten sonra tekrar) önbelleğe yazılırken — bkz. cachedSystemPrompt() notu
+  cacheRead: 0.2, // sistem promptu önbellekten okunduğunda (1 saat içinde art arda istek)
 };
 
 /**
@@ -215,7 +228,7 @@ function logUsageAndCost(response, label) {
   const costUsd =
     (inputTokens / 1_000_000) * PRICE_PER_MTOK_USD.input +
     (outputTokens / 1_000_000) * PRICE_PER_MTOK_USD.output +
-    (cacheWriteTokens / 1_000_000) * PRICE_PER_MTOK_USD.cacheWrite5m +
+    (cacheWriteTokens / 1_000_000) * PRICE_PER_MTOK_USD.cacheWrite1h +
     (cacheReadTokens / 1_000_000) * PRICE_PER_MTOK_USD.cacheRead;
 
   console.log(
