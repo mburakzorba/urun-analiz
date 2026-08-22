@@ -337,7 +337,16 @@ async function analyzeProductImage(
     baseUserText +=
       `\n\nKULLANICI ÜRÜN ADINI KENDİSİ BELİRTTİ: Bu ürünün tam olarak "${userProvidedName.trim()}" ` +
       "olduğunu kullanıcı yazdı — bunu KESİN doğru kabul et, \"productName\" (ve belliyse \"brand\") " +
-      "alanlarını buna göre yaz, ürünün ne olduğunu fotoğraftan AYRICA tahmin etmeye ÇALIŞMA.";
+      "alanlarını buna göre yaz, ürünün ne olduğunu fotoğraftan AYRICA tahmin etmeye ÇALIŞMA.\n" +
+      "ÖNEMLİ SINIR: Bu kural SADECE kimlik (isim/marka) içindir. Ürünün GERÇEKTE ne işe yaradığını, " +
+      "hangi bileşenleri içerdiğini, sağlık/etkinlik değerlendirmesini HER ZAMAN fotoğraftaki GERÇEK " +
+      "içerik/bileşen listesinden çıkar — kullanıcının yazdığı ismin ima ettiği kategoriye veya bu " +
+      "isimle ilgili genel/tipik bilgine GÜVENME. Örnek: kullanıcı ürünü \"Marka Koruma Krem\" diye " +
+      "yazdı ama fotoğraftaki içerik listesinde açıkça UV filtresi (ör. Octocrylene, Avobenzone/Butyl " +
+      "Methoxydibenzoylmethane, Ethylhexyl Salicylate gibi) varsa, bu ürünü \"güneş koruması sağlamıyor\" " +
+      "diye DEĞERLENDİRME — etikette ne varsa doğru olan odur, isim bunu geçersiz kılmaz. İsim ile " +
+      "etiketteki bileşenler arasında böyle bir çelişki fark edersen, bunu \"effectivenessSummary\" " +
+      "içinde kullanıcıya AÇIKÇA belirt (ör. \"Ürün adı X olsa da etikette Y bileşenleri bulunuyor\").";
   }
   if (userProvidedIngredients && userProvidedIngredients.trim()) {
     // Kullanıcı gerçek içerik listesini verdiyse, fotoğraftan İÇERİK okuma
