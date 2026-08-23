@@ -5,6 +5,7 @@ const {
   USER_PROMPT_TWO_IMAGES,
   USER_PROMPT_TWO_IMAGES_BOTH_INGREDIENTS,
   KNOWN_PRODUCT_SYSTEM_PROMPT,
+  EXTRACT_INGREDIENTS_SYSTEM_PROMPT,
   buildKnownProductUserPrompt,
   buildProfileBlock,
 } = require("./prompt");
@@ -264,6 +265,52 @@ function logUsageAndCost(response, label) {
 }
 
 /**
+ * İsimden BAĞIMSIZ bileşen okuma (bkz. prompt.js'teki EXTRACT_INGREDIENTS_
+ * SYSTEM_PROMPT notu). Bu çağrı SADECE görseli görüyor — kullanıcının yazdığı
+ * ürün adı, kategori, profil gibi hiçbir bağlam bu isteğe HİÇ girmiyor. Amaç:
+ * aynı fotoğrafın, kullanıcının yazdığı isme göre farklı okunmasını (ör. bir
+ * seferinde UV filtrelerini görüp bir seferinde görmezden gelmesini) yapısal
+ * olarak imkânsız hale getirmek. Döner: düz metin bileşen listesi, ya da
+ * fotoğrafta hiç içerik listesi yoksa/istemci yoksa null.
+ */
+async function extractIngredientsFromLabel(imageBuffer, mimeType, imageBackBuffer, backMimeType) {
+  const anthropic = getClient();
+  if (!anthropic) return null;
+
+  const content = [
+    { type: "image", source: { type: "base64", media_type: mimeType, data: imageBuffer.toString("base64") } },
+  ];
+  if (imageBackBuffer && imageBackBuffer.length) {
+    content.push({
+      type: "image",
+      source: { type: "base64", media_type: backMimeType || "image/jpeg", data: imageBackBuffer.toString("base64") },
+    });
+  }
+  content.push({ type: "text", text: "Bu etiketteki içerik/bileşen listesini oku ve yukarıdaki kurala göre yaz." });
+
+  try {
+    const stream = anthropic.messages.stream({
+      model: MODEL,
+      max_tokens: 2000, // sadece bir liste dönüyor, tam analiz kadar uzun olmasına gerek yok
+      temperature: 0,
+      system: cachedSystemPrompt(EXTRACT_INGREDIENTS_SYSTEM_PROMPT),
+      messages: [{ role: "user", content }],
+    });
+    const response = await stream.finalMessage();
+    logUsageAndCost(response, "extractIngredientsFromLabel (isimden bağımsız ön-okuma)");
+    const text = extractTextBlock(response).trim();
+    if (!text || text.includes("İÇERİK_LİSTESİ_YOK")) return null;
+    return text;
+  } catch (err) {
+    // Ön-okuma başarısız olursa (ağ hatası vb.) analiz akışını tamamen
+    // durdurmuyoruz — main çağrı eskisi gibi (fotoğraftan kendi okuyarak)
+    // devam eder, sadece isimden-bağımsızlık avantajını kaybederiz.
+    console.warn("[analyze] extractIngredientsFromLabel başarısız, ana çağrı fotoğraftan okumaya devam edecek:", err.message);
+    return null;
+  }
+}
+
+/**
  * imageBuffer: Buffer (yüklenen fotoğraf — tek fotoğraf akışında ürünün
  *   önü/arkası her ikisi de olabilir; iki fotoğraf akışında bu ÖN yüzdür)
  * mimeType: örn. "image/jpeg"
@@ -310,6 +357,23 @@ async function analyzeProductImage(
     return getMockAnalysis();
   }
 
+  // Kullanıcı zaten kendi eliyle içerik listesi yazmadıysa, isimden BAĞIMSIZ
+  // bir ön-çağrıyla biz okuyoruz (bkz. extractIngredientsFromLabel notu) —
+  // bu, aynı fotoğrafın kullanıcının yazdığı isme göre farklı okunmasını
+  // (Nivea "güneş kremi" vs "koruma kremi" örneğindeki hata) yapısal olarak
+  // engelliyor. userProvidedIngredients doluysa (kullanıcı zaten yazmış/
+  // yapıştırmış) bu adımı hiç yapmıyoruz — o zaten en güvenilir kaynak ve
+  // gereksiz bir AI çağrısından kaçınmış oluyoruz.
+  let effectiveIngredientsText = userProvidedIngredients && userProvidedIngredients.trim() ? userProvidedIngredients.trim() : null;
+  let ingredientsWereExtracted = false;
+  if (!effectiveIngredientsText) {
+    const extracted = await extractIngredientsFromLabel(imageBuffer, mimeType, imageBackBuffer, backMimeType);
+    if (extracted) {
+      effectiveIngredientsText = extracted;
+      ingredientsWereExtracted = true;
+    }
+  }
+
   const base64Image = imageBuffer.toString("base64");
   const hasBackImage = Boolean(imageBackBuffer && imageBackBuffer.length > 0);
 
@@ -348,17 +412,20 @@ async function analyzeProductImage(
       "etiketteki bileşenler arasında böyle bir çelişki fark edersen, bunu \"effectivenessSummary\" " +
       "içinde kullanıcıya AÇIKÇA belirt (ör. \"Ürün adı X olsa da etikette Y bileşenleri bulunuyor\").";
   }
-  if (userProvidedIngredients && userProvidedIngredients.trim()) {
-    // Kullanıcı gerçek içerik listesini verdiyse, fotoğraftan İÇERİK okuma
-    // talimatını geçersiz kılıyoruz — bu metin fotoğraftan daha güvenilir
-    // (kullanıcı etikette gerçekten yazanı kopyaladı/yazdı).
+  if (effectiveIngredientsText) {
+    // İçerik listesi ya kullanıcıdan ya da yukarıdaki isimden-bağımsız
+    // ön-okuma adımından geldi — her iki durumda da fotoğraftan AYRICA
+    // okumaya çalışmasın, bu metin zaten doğrulanmış/güvenilir veri.
     baseUserText +=
-      "\n\nKULLANICI İÇERİK LİSTESİNİ KENDİSİ YAZDI (bu, fotoğraftaki okunaksız/eksik kısımdan DAHA " +
-      "GÜVENİLİR kabul edilmeli): \n" +
-      userProvidedIngredients.trim() +
+      (ingredientsWereExtracted
+        ? "\n\nİÇERİK LİSTESİ (bu ürünün etiketinden, isim/kategori bilgisi VERİLMEDEN ayrı bir " +
+          "adımda, tarafsız şekilde okundu — DOĞRU ve GÜVENİLİR kabul et):\n"
+        : "\n\nKULLANICI İÇERİK LİSTESİNİ KENDİSİ YAZDI (bu, fotoğraftaki okunaksız/eksik kısımdan DAHA " +
+          "GÜVENİLİR kabul edilmeli):\n") +
+      effectiveIngredientsText +
       "\n\"ingredients\" alanını YUKARIDAKİ metne dayanarak doldur (her bileşeni ayrı madde olarak, " +
-      "normal kurallara göre) — fotoğraftaki içerik/bileşen listesini AYRICA okumaya ÇALIŞMA, bu metin " +
-      "zaten doğrulanmış veri. Fotoğrafı sadece ürün kimliği/ambalaj teyidi için kullan.";
+      "normal kurallara göre, HİÇBİRİNİ atlama) — fotoğraftaki içerik/bileşen listesini AYRICA okumaya " +
+      "ÇALIŞMA, bu metin zaten doğrulanmış veri. Fotoğrafı sadece ürün kimliği/ambalaj teyidi için kullan.";
   } else if (userProvidedName && userProvidedName.trim()) {
     baseUserText +=
       " İçerik/bileşen listesini yine normal kurallara göre fotoğraftan oku (okunamıyorsa bu ürün " +

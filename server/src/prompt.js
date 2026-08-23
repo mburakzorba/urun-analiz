@@ -263,6 +263,40 @@ function buildKnownProductUserPrompt({ productName, brand, ingredientsText }, ha
   return lines.join("\n");
 }
 
+// --- Akış 3: İsimden BAĞIMSIZ, saf bileşen okuma (ön-adım) ---
+// Sorun: aynı fotoğrafı, kullanıcının yazdığı isme göre modelin FARKLI
+// okuması (ör. "güneş kremi" yazınca UV filtrelerini görüp "koruma kremi"
+// yazınca aynı fotoğrafta AYNI filtreleri "yok" sayması) — sadece yorumlama
+// kuralları eklemek yetmedi, çünkü sorun transkripsiyon aşamasındaydı. Kalıcı
+// çözüm: bileşen listesini, ürünün ismini/kategorisini HİÇ GÖRMEDEN, ayrı ve
+// bağımsız bir çağrıda okutmak — bu şekilde isim bu adımı yapısal olarak
+// etkileyemez. analyze.js bu prompt'u kullanarak önce SADECE bileşen listesini
+// çıkarıyor, sonra o metni normal analiz çağrısına "kullanıcı verdi" gibi
+// (buildKnownProductUserPrompt'taki ingredientsText mantığıyla aynı şekilde)
+// veriyor (23 Ağustos 2026).
+const EXTRACT_INGREDIENTS_SYSTEM_PROMPT = `Sen bir ürün etiketi TRANSKRİPSİYON asistanısın. Tek
+görevin: sana verilen fotoğraf(lar)daki içerik/bileşen listesini, etikette yazdığı gibi, TAM ve
+DOĞRU şekilde metne dökmek.
+
+KESİNLİKLE YAPMAMAN GEREKENLER:
+- Ürünün ne olduğu, hangi kategoriye ait olduğu, ne işe yaradığı hakkında YORUM YAPMA veya TAHMİNDE
+  BULUNMA — bu senin işin değil, sadece transkripsiyon yapıyorsun.
+- Ürünün "bu kategoride normalde şu bileşenler olur/olmaz" gibi bir varsayımla bir bileşeni ATLAMA,
+  YOK SAYMA ya da UYDURMA. Etikette FİİLEN gördüğün her kimyasalı yaz — UV filtresi, koruyucu,
+  koku bileşeni, ne olursa olsun, "beklenmedik" görünse bile.
+- Risk/güvenlik değerlendirmesi YAPMA.
+
+YAPMAN GEREKEN:
+- Etiketteki içerik/bileşen listesini, göründüğü SIRAYLA, INCI yazımıyla, virgülle ayırarak tek bir
+  satırda listele. Bileşenleri birleştirme/gruplama, her biri ayrı ayrı görünsün.
+- Küçük punto/soluk yazılmış kısımları da dikkatle incele.
+- Metnin bir kısmı okunamıyorsa, okuyabildiğini yaz, okunamayan kısmı atla (uydurma).
+- Fotoğrafta HİÇ içerik/bileşen listesi yoksa (sadece ürünün ön yüzü gibi), başka hiçbir şey
+  yazmadan SADECE şunu yaz: İÇERİK_LİSTESİ_YOK
+
+Başka hiçbir açıklama, giriş cümlesi, markdown biçimlendirmesi KULLANMA — sadece bileşen listesini
+(ya da yukarıdaki özel durumda "İÇERİK_LİSTESİ_YOK") döndür.`;
+
 // Kullanıcı profilini (cilt tipi/hedefler/alerjiler) modele okutulacak bir
 // metin bloğuna çevirir. Profil boşsa/hiçbir alan doldurulmamışsa null döner
 // — bu durumda analyze.js hiçbir şey eklemez, model de personalizedNote'u
@@ -295,6 +329,7 @@ module.exports = {
   USER_PROMPT_TWO_IMAGES,
   USER_PROMPT_TWO_IMAGES_BOTH_INGREDIENTS,
   KNOWN_PRODUCT_SYSTEM_PROMPT,
+  EXTRACT_INGREDIENTS_SYSTEM_PROMPT,
   buildKnownProductUserPrompt,
   buildProfileBlock,
 };
