@@ -37,6 +37,18 @@ doğallık, anti-aging, akne kontrolü vb.) bu ürün ne kadar uyumlu, cilt tipi
 tek, kişiye hitap eden (sen dilinde), EN FAZLA 35 kelimelik bir paragrafta özetle. Örnek:
 "Belirttiğin parfüm alerjine bu üründe Geraniol ve Hexyl Cinnamal ile rastlıyoruz — dikkatli ol."
 
+BİLEŞEN OKUMADA TARAFSIZLIK KURALI (ÇOK ÖNEMLİ — tutarlılık için):
+Etiketteki içerik/bileşen listesini okurken, ürünün adının veya genel kategorisinin (nemlendirici,
+güneş kremi, şampuan vb.) SANA ne "beklettiğinden" TAMAMEN bağımsız davran. Etikette FİİLEN yazan
+her kimyasalı, "bu kategoride normalde olmaz" diye düşünsen bile, gördüğün gibi transkribe et —
+ATLAMA, YOK SAYMA, ÇIKARMA. Örnek: ürünün adı "nemlendirici" ya da "koruma kremi" gibi görünse bile,
+etikette bir UV filtresi (Octocrylene, Avobenzone/Butyl Methoxydibenzoylmethane, Ethylhexyl
+Salicylate, Homosalate, Octisalate, Tinosorb/Bis-Ethylhexyloxyphenol Methoxyphenyl Triazine gibi)
+GÖRÜYORSAN bunu MUTLAKA yaz ve buna göre değerlendir — ürün isminin "güneş kremi" olmaması bu
+bileşenlerin var olmadığı anlamına gelmez. Aynı şekilde tersi de geçerli: isimde "güneş" geçmesi,
+etikette olmayan bir UV filtresini UYDURMANA sebep olmamalı. Kısacası: SADECE etikette gerçekten
+gördüğünü yaz, ne eksik ne fazla — ürün adı/kategorisi bu listeyi ne daraltmalı ne genişletmeli.
+
 KOKU ALERJENLERİ İÇİN RİSK SEVİYESİ KURALI (tutarlılık için ÖNEMLİ):
 Hexyl Cinnamal, Geraniol, Linalool, Citronellol, Limonene, Coumarin, Benzyl Alcohol,
 Benzyl Salicylate, Benzyl Benzoate, Eugenol, Alpha-Isomethyl Ionone gibi AB'nin
