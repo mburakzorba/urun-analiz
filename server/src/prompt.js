@@ -49,6 +49,17 @@ bileşenlerin var olmadığı anlamına gelmez. Aynı şekilde tersi de geçerli
 etikette olmayan bir UV filtresini UYDURMANA sebep olmamalı. Kısacası: SADECE etikette gerçekten
 gördüğünü yaz, ne eksik ne fazla — ürün adı/kategorisi bu listeyi ne daraltmalı ne genişletmeli.
 
+KONSANTRASYON DEĞERLENDİRMESİ İÇİN OBJEKTİF KURAL (tutarlılık için ÇOK ÖNEMLİ):
+Bir bileşenin "yüksek konsantrasyonda" olup olmadığına dair değerlendirme YAPMAN gerektiğinde,
+bunu ASLA bir "izlenim/tahmin" olarak yapma — bu, aynı ürünün farklı taramalarında farklı sonuç
+vermene sebep olur. Bunun yerine SADECE şu objektif, kontrol edilebilir sinyali kullan: içerik
+listeleri, kozmetik mevzuatı gereği bileşenleri konsantrasyona göre AZALAN sırada listeler. Yani
+bir bileşenin listede kaçıncı sırada olduğu, gerçek ve tutarlı bir konsantrasyon göstergesidir:
+- Listenin ilk 5 sırasında yer alıyorsa: "yüksek/belirgin konsantrasyonda" kabul et.
+- Listenin ortasında/sonlarına doğruysa: "düşük konsantrasyonda" kabul et.
+Bu kuralı, aşağıdaki koku alerjeni ve alkol kurallarındaki "yüksek konsantrasyon" şartını
+değerlendirirken KULLAN — asla "muhtemelen yüksektir" gibi belirsiz bir izlenimle karar verme.
+
 KOKU ALERJENLERİ İÇİN RİSK SEVİYESİ KURALI (tutarlılık için ÖNEMLİ):
 Hexyl Cinnamal, Geraniol, Linalool, Citronellol, Limonene, Coumarin, Benzyl Alcohol,
 Benzyl Salicylate, Benzyl Benzoate, Eugenol, Alpha-Isomethyl Ionone gibi AB'nin
@@ -57,11 +68,19 @@ konsantrasyonda bulundukları çoğu kozmetik üründe genel olarak güvenli kab
 bunlar VARSAYILAN OLARAK "orta" risk seviyesinde değerlendirilmeli. Bu maddeyi "riskli"
 seviyesine SADECE şu iki durumdan biri açıkça geçerliyse yükselt: (a) ürün durulanmayan/
 cilt üzerinde uzun süre kalan (leave-on — krem, sprey, peeling maske vb.) bir formülasyon
-VE aynı üründe birden fazla koku alerjeni bir arada listeleniyorsa, (b) etikette açıkça
-yüksek/belirgin bir konsantrasyon belirtilmişse. Bu net sınırı uygula ki aynı bileşen,
-aynı ürünün farklı taramalarında bir seferinde "orta" bir seferinde "riskli" gibi
-tutarsız çıkmasın — MCI/Methylisothiazolinone gibi net-yüksek-riskli koruyucularla
+VE aynı üründe birden fazla koku alerjeni bir arada listeleniyorsa, (b) yukarıdaki objektif
+konsantrasyon kuralına göre listenin ilk 5 sırasında yer alıyorsa. Bu net sınırı uygula ki
+aynı bileşen, aynı ürünün farklı taramalarında bir seferinde "orta" bir seferinde "riskli"
+gibi tutarsız çıkmasın — MCI/Methylisothiazolinone gibi net-yüksek-riskli koruyucularla
 KARIŞTIRMA, onlar zaten her koşulda "riskli" kalmalı.
+
+ALKOL (Alcohol Denat. / Alcohol / Ethanol) İÇİN RİSK SEVİYESİ KURALI (tutarlılık için ÖNEMLİ):
+Alcohol Denat. (denatüre alkol) çoğu kozmetik üründe (özellikle güneş kremi, tonik, sprey
+deodorant gibi hızlı kuruyan formülasyonlarda) yaygın ve VARSAYILAN OLARAK "orta" risk
+seviyesinde bir bileşendir. "Riskli" seviyesine SADECE yukarıdaki objektif konsantrasyon
+kuralına göre listenin ilk 3 sırasında yer alıyorsa (yani ürünün ana bileşenlerinden biriyse)
+yükselt. Listenin ortasında/sonlarındaysa (çoğu ürün için tipik durum budur), "orta" seviyesinde
+KAL — "yüksek konsantrasyonda olabilir" gibi bir tahminle riskli'ye çıkarma.
 
 "ingredients" İÇİN EN ÖNEMLİ KURAL — TAM LİSTE İSTİYORUZ:
 Etikette/içerik listesinde okuyabildiğin HER BİLEŞENİ, etiketteki sırasıyla, TEK TEK yaz.
