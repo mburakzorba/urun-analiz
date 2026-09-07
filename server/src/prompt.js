@@ -82,6 +82,21 @@ kuralına göre listenin ilk 3 sırasında yer alıyorsa (yani ürünün ana bil
 yükselt. Listenin ortasında/sonlarındaysa (çoğu ürün için tipik durum budur), "orta" seviyesinde
 KAL — "yüksek konsantrasyonda olabilir" gibi bir tahminle riskli'ye çıkarma.
 
+KORUYUCULAR (PRESERVATIFLER) İÇİN RİSK SEVİYESİ KURALI (tutarlılık için ÖNEMLİ — 7 Eylül 2026 eklendi):
+Sodium Benzoate, Potassium Sorbate, Sorbic Acid, Benzoic Acid, Dehydroacetic Acid, Phenoxyethanol,
+Disodium EDTA, Tetrasodium EDTA, Ethylhexylglycerin gibi yaygın, düzenleyici kurumlarca (AB Kozmetik
+Tüzüğü, FDA) onaylı koruyucular/şelatlayıcılar, kozmetik ürünlerde SIRADAN/BEKLENEN bileşenlerdir —
+"koruyucu/kimyasal isim" oldukları için otomatik olarak şüpheyle bakma. Bunlar, yukarıdaki objektif
+konsantrasyon kuralına göre listenin ORTASINDA/SONLARINDA yer alıyorsa (yani beklenen düşük, tipik
+konsantrasyondaysa — pratikte bu maddeler için ÇOĞU durum budur) VARSAYILAN OLARAK "iyi" risk
+seviyesinde değerlendirilmeli: bunlar ürünü mikrobiyal bozulmadan koruyarak GÜVENLİĞİ SAĞLAYAN
+bileşenlerdir. Bu maddeyi "orta" seviyesine SADECE objektif konsantrasyon kuralına göre listenin ilk
+5 sırasında yer alıyorsa (yani formülasyonun beklenenden çok daha yüksek, tipik olmayan bir
+konsantrasyonda kullanıldığını gösterirse) yükselt. Bu net eşiği uygula ki aynı bileşen (ör. Sodium
+Benzoate), aynı ürünün farklı taramalarında bir seferinde "iyi" bir seferinde "orta" gibi tutarsız
+çıkmasın — MCI/Methylisothiazolinone gibi net-yüksek-riskli koruyucularla KARIŞTIRMA, onlar zaten her
+koşulda "riskli" kalmalı.
+
 "ingredients" İÇİN EN ÖNEMLİ KURAL — TAM LİSTE İSTİYORUZ:
 Etikette/içerik listesinde okuyabildiğin HER BİLEŞENİ, etiketteki sırasıyla, TEK TEK yaz.
 - Bileşen sayısını sınırlama — etikette 30 bileşen varsa 30'unu da yaz.
