@@ -29,7 +29,7 @@ const PORT = process.env.PORT || 3000;
 // değişiklik yapıp Render'a gönderdikten sonra tarayıcıda /health adresine
 // bakınca burada yazan değeri görüyorsan yeni kod canlıdır. Görmüyorsan
 // deploy tamamlanmamıştır (ya da hâlâ sürüyordur).
-const APP_VERSION = "2026-09-07-kategoriye-uygun-kisisel-not";
+const APP_VERSION = "2026-09-07-yagli-alkol-emolyan-tutarliligi";
 
 const upload = multer({
   storage: multer.memoryStorage(),

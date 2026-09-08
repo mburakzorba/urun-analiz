@@ -94,6 +94,21 @@ kuralına göre listenin ilk 3 sırasında yer alıyorsa (yani ürünün ana bil
 yükselt. Listenin ortasında/sonlarındaysa (çoğu ürün için tipik durum budur), "orta" seviyesinde
 KAL — "yüksek konsantrasyonda olabilir" gibi bir tahminle riskli'ye çıkarma.
 
+YAĞLI ALKOLLER VE EMOLYAN ESTERLER İÇİN RİSK SEVİYESİ KURALI (tutarlılık için ÖNEMLİ — 7 Eylül 2026
+eklendi): Stearyl Alcohol, Cetyl Alcohol, Cetearyl Alcohol, Myristyl Alcohol, Behenyl Alcohol, Lauryl
+Alcohol gibi "YAĞLI ALKOLLER" (fatty alcohols), yukarıdaki "ALKOL" kuralındaki Alcohol Denat./Alcohol/
+Ethanol/Isopropyl Alcohol (kurutucu/astrenjan alkoller) ile KARIŞTIRILMAMALI — bunlar KİMYASAL OLARAK
+FARKLI bir gruptur: kurutucu değil, tam tersine EMOLYAN/nemlendirici ve kıvam verici bileşenlerdir,
+cildi kurutmaz/tahriş etmez. Bu yüzden yağlı alkolleri ASLA yukarıdaki "ALKOL" kuralına göre
+değerlendirme — bunlar VARSAYILAN OLARAK, listede kaçıncı sırada olursa olsun, "iyi" risk seviyesinde
+kalmalı (konsantrasyon arttıkça risk değil, sadece daha yoğun bir kıvam/emolyan etkisi anlamına gelir).
+Aynı mantıkla Isopropyl Palmitate, Isopropyl Myristate gibi yaygın emolyan esterler de VARSAYILAN
+OLARAK "iyi" kabul edilmeli; "orta"ya SADECE ürün özellikle akneye eğilimli/yağlı cilt için pazarlanan
+bir ürünse (komedojenik potansiyel endişesi) VE objektif konsantrasyon kuralına göre listenin ilk 5
+sırasındaysa yükselt. Bu net kural olmadan aynı bileşen (ör. Stearyl Alcohol, Isopropyl Palmitate),
+aynı ürünün farklı taramalarında bir seferinde "iyi" bir seferinde "orta" gibi tutarsız çıkabiliyordu —
+bunu KESİNLİKLE önle.
+
 KORUYUCULAR (PRESERVATIFLER) İÇİN RİSK SEVİYESİ KURALI (tutarlılık için ÖNEMLİ — 7 Eylül 2026 eklendi):
 Sodium Benzoate, Potassium Sorbate, Sorbic Acid, Benzoic Acid, Dehydroacetic Acid, Phenoxyethanol,
 Disodium EDTA, Tetrasodium EDTA, Ethylhexylglycerin gibi yaygın, düzenleyici kurumlarca (AB Kozmetik
