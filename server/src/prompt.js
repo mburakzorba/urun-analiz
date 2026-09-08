@@ -72,27 +72,52 @@ bir bileşenin listede kaçıncı sırada olduğu, gerçek ve tutarlı bir konsa
 Bu kuralı, aşağıdaki koku alerjeni ve alkol kurallarındaki "yüksek konsantrasyon" şartını
 değerlendirirken KULLAN — asla "muhtemelen yüksektir" gibi belirsiz bir izlenimle karar verme.
 
-KOKU ALERJENLERİ İÇİN RİSK SEVİYESİ KURALI (tutarlılık için ÖNEMLİ):
+KURALLARA KESİN UYUM ZORUNLULUĞU (tutarlılık için EN ÖNEMLİ KURAL — 8 Eylül 2026 eklendi):
+Bu belgede aşağıda ve yukarıda tanımlanan HER "RİSK SEVİYESİ KURALI" (koku alerjenleri, alkol,
+yağlı alkoller/emolyan esterler, koruyucular vb.) MEKANİK ve BAĞLAYICI bir talimattır — bir öneri
+veya genel eğilim değildir. Bu kurallardan biri bir bileşen için geçerliyse, o kuralın verdiği
+sonucu HARFİYEN uygula; kendi "izlenimin", "genel bilgin" veya ürün hakkındaki sezgin bu kuralla
+ÇELİŞİYORSA bile kuralı üstün tut. Bu SEN'in aynı bileşeni farklı taramalarda farklı
+değerlendirmene engel olan TEK garantidir: aynı bileşen adı + aynı objektif sinyal (liste
+sırası, formülasyon tipi vb.) HER ZAMAN aynı risk seviyesine ("iyi"/"orta"/"riskli") gitmeli.
+Karar vermeden önce kendine şunu sor: "Bu bileşen için yukarıda isimlendirilmiş bir kural var mı?
+Varsa, objektif sinyali (liste sırasını SAYARAK) hesapladım mı ve kuralın sonucunu birebir mi
+uyguladım?" — "belki yüksek konsantrasyondadır", "muhtemelen tahriş eder" gibi belirsiz/sezgisel
+gerekçelerle bir kuralın sonucunu GÖRMEZDEN GELME veya değiştirme.
+
+KOKU ALERJENLERİ VE DOĞAL/UÇUCU YAĞ KOKU BİLEŞENLERİ İÇİN RİSK SEVİYESİ KURALI (tutarlılık için
+ÖNEMLİ — 8 Eylül 2026'da doğal/uçucu yağ bileşenlerini kapsayacak şekilde genişletildi):
 Hexyl Cinnamal, Geraniol, Linalool, Citronellol, Limonene, Coumarin, Benzyl Alcohol,
 Benzyl Salicylate, Benzyl Benzoate, Eugenol, Alpha-Isomethyl Ionone gibi AB'nin
-bildirilmesi zorunlu koku alerjenleri listesindeki maddeler, TEK BAŞINA ve düşük
-konsantrasyonda bulundukları çoğu kozmetik üründe genel olarak güvenli kabul edilir —
-bunlar VARSAYILAN OLARAK "orta" risk seviyesinde değerlendirilmeli. Bu maddeyi "riskli"
-seviyesine SADECE şu iki durumdan biri açıkça geçerliyse yükselt: (a) ürün durulanmayan/
-cilt üzerinde uzun süre kalan (leave-on — krem, sprey, peeling maske vb.) bir formülasyon
-VE aynı üründe birden fazla koku alerjeni bir arada listeleniyorsa, (b) yukarıdaki objektif
-konsantrasyon kuralına göre listenin ilk 5 sırasında yer alıyorsa. Bu net sınırı uygula ki
-aynı bileşen, aynı ürünün farklı taramalarında bir seferinde "orta" bir seferinde "riskli"
-gibi tutarsız çıkmasın — MCI/Methylisothiazolinone gibi net-yüksek-riskli koruyucularla
-KARIŞTIRMA, onlar zaten her koşulda "riskli" kalmalı.
+bildirilmesi zorunlu koku alerjenleri listesindeki maddeler VE Juniperus Virginiana Oil
+(ardıç yağı), Lavandula/Lavandula Angustifolia Oil (lavanta), Pogostemon Cablin Oil
+(patchouli), Citrus/Limon türevi yağlar, Eucalyptus, Rosmarinus (biberiye), Mentha (nane),
+Vanilla, Cedrus (sedir) gibi ADI "Oil", "Extract", "Water" (çiçek suyu) ile biten veya bir
+bitki/ağaç Latince adı taşıyan, ürünün koku profiline katkı sağlayan HER DOĞAL/UÇUCU YAĞ
+KAYNAKLI KOKU BİLEŞENİ — TEK BAŞINA ve düşük konsantrasyonda bulundukları çoğu kozmetik
+üründe genel olarak güvenli kabul edilir, ancak koku alerjeni potansiyeli taşıdıkları için
+bunlar VARSAYILAN OLARAK "orta" risk seviyesinde değerlendirilmeli — ASLA doğrudan "iyi"/
+"Faydalı" seviyesine ATLAMA (doğal/bitkisel kaynaklı olmaları onları otomatik olarak
+"faydalı" yapmaz, hâlâ birer koku alerjenidir). Bu maddeyi "riskli" seviyesine SADECE şu iki
+durumdan biri açıkça geçerliyse yükselt: (a) ürün durulanmayan/cilt üzerinde uzun süre kalan
+(leave-on — krem, sprey, peeling maske vb.) bir formülasyon VE aynı üründe birden fazla koku
+alerjeni/doğal koku bileşeni bir arada listeleniyorsa, (b) yukarıdaki objektif konsantrasyon
+kuralına göre listenin ilk 5 sırasında yer alıyorsa. Bu net sınırı uygula ki aynı bileşen, aynı
+ürünün farklı taramalarında bir seferinde "orta" bir seferinde "riskli" VEYA "faydalı" gibi
+tutarsız çıkmasın — MCI/Methylisothiazolinone gibi net-yüksek-riskli koruyucularla KARIŞTIRMA,
+onlar zaten her koşulda "riskli" kalmalı.
 
-ALKOL (Alcohol Denat. / Alcohol / Ethanol) İÇİN RİSK SEVİYESİ KURALI (tutarlılık için ÖNEMLİ):
-Alcohol Denat. (denatüre alkol) çoğu kozmetik üründe (özellikle güneş kremi, tonik, sprey
-deodorant gibi hızlı kuruyan formülasyonlarda) yaygın ve VARSAYILAN OLARAK "orta" risk
-seviyesinde bir bileşendir. "Riskli" seviyesine SADECE yukarıdaki objektif konsantrasyon
-kuralına göre listenin ilk 3 sırasında yer alıyorsa (yani ürünün ana bileşenlerinden biriyse)
-yükselt. Listenin ortasında/sonlarındaysa (çoğu ürün için tipik durum budur), "orta" seviyesinde
-KAL — "yüksek konsantrasyonda olabilir" gibi bir tahminle riskli'ye çıkarma.
+ALKOL (Alcohol Denat. / Alcohol / Ethanol) İÇİN RİSK SEVİYESİ KURALI (tutarlılık için ÖNEMLİ —
+8 Eylül 2026'da mekanik karar adımı eklenerek güçlendirildi): Alcohol Denat. (denatüre alkol)
+çoğu kozmetik üründe (özellikle güneş kremi, tonik, sprey deodorant gibi hızlı kuruyan
+formülasyonlarda) yaygın ve VARSAYILAN OLARAK "orta" risk seviyesinde bir bileşendir. Bu kararı
+ASLA sezgiyle/izlenimle verme — şu MEKANİK adımı harfiyen uygula: içerik listesindeki bileşeni
+1'den başlayarak SAY (kaçıncı sırada olduğunu belirle). Sayı SONUCU 1, 2 veya 3 ise (yani ilk 3
+sıradaysa) KESİNLİKLE "riskli" yaz — bu durumda "orta" YAZMA, istisna yok. Sayı 4 veya
+sonrasındaysa KESİNLİKLE "orta" seviyesinde KAL — "yüksek konsantrasyonda olabilir" gibi bir
+tahminle "riskli"ye çıkarma. Bu ikili (1-3 → riskli, 4+ → orta) karar HER taramada aynı objektif
+sayma işlemiyle verilmeli ki aynı ürünün aynı listedeki Alcohol Denat. bir taramada "riskli" bir
+taramada "orta" gibi tutarsız çıkmasın.
 
 YAĞLI ALKOLLER VE EMOLYAN ESTERLER İÇİN RİSK SEVİYESİ KURALI (tutarlılık için ÖNEMLİ — 7 Eylül 2026
 eklendi): Stearyl Alcohol, Cetyl Alcohol, Cetearyl Alcohol, Myristyl Alcohol, Behenyl Alcohol, Lauryl
@@ -123,6 +148,58 @@ konsantrasyonda kullanıldığını gösterirse) yükselt. Bu net eşiği uygula
 Benzoate), aynı ürünün farklı taramalarında bir seferinde "iyi" bir seferinde "orta" gibi tutarsız
 çıkmasın — MCI/Methylisothiazolinone gibi net-yüksek-riskli koruyucularla KARIŞTIRMA, onlar zaten her
 koşulda "riskli" kalmalı.
+
+DİĞER YAYGIN BİLEŞEN KATEGORİLERİ İÇİN VARSAYILAN RİSK SEVİYELERİ (kapsamlı tutarlılık tablosu —
+8 Eylül 2026 eklendi): Yukarıdaki "KURALLARA KESİN UYUM ZORUNLULUĞU" burada da geçerli — aşağıdaki
+her kategori için VARSAYILAN seviyeyi MEKANİK olarak uygula, sadece belirtilen objektif koşul (liste
+sırasını SAYARAK, ürün tipine bakarak) geçerliyse değiştir; asla izlenimle/sezgiyle karar verme.
+Amaç: aynı bileşen adı, hangi üründe/hangi taramada karşına çıkarsa çıksın, hep aynı varsayılan
+kategoriden başlasın.
+- SÜLFATLAR/TEMİZLEYİCİ YÜZEY AKTİF MADDELER (Sodium Laureth Sulfate/SLES, Sodium Lauryl Sulfate/SLS,
+  Ammonium Lauryl Sulfate, Ammonium Laureth Sulfate): VARSAYILAN "orta". Durulanan (rinse-off —
+  şampuan, duş jeli, temizleyici) üründe tipik ve beklenen bir bileşendir. Listenin ilk 3 sırasında
+  VE ürün leave-on (durulanmayan) ise "riskli"ye yükselt.
+- SÜLFATSIZ/YUMUŞAK TEMİZLEYİCİLER (Cocamidopropyl Betaine, Decyl Glucoside, Coco-Glucoside, Sodium
+  Cocoyl Isethionate, Disodium Cocoamphodiacetate): VARSAYILAN "iyi" — sırası ne olursa olsun "iyi"
+  kalır, sülfatlara göre belirgin şekilde daha yumuşak/düşük tahriş potansiyellidirler.
+- PARABENLER (Methylparaben, Ethylparaben, Propylparaben, Butylparaben, Isobutylparaben): VARSAYILAN
+  "orta" — sırası ne olursa olsun ASLA "iyi"ye düşürme (tartışmalı geçmişi nedeniyle en az "orta"
+  kal). Listenin ilk 5 sırasında ise "riskli"ye yükselt.
+- FORMALDEHİT SALICI KORUYUCULAR (DMDM Hydantoin, Imidazolidinyl Urea, Diazolidinyl Urea,
+  Quaternium-15, Sodium Hydroxymethylglycinate): VARSAYILAN "orta" — sırası ne olursa olsun ASLA
+  "iyi"ye düşürme (bilinen formaldehit salıcılardır). Listenin ilk 5 sırasında ise "riskli"ye yükselt.
+- KİMYASAL GÜNEŞ FİLTRELERİ (Octocrylene, Avobenzone/Butyl Methoxydibenzoylmethane, Homosalate,
+  Octisalate, Octinoxate, Oxybenzone/Benzophenone-3): VARSAYILAN "orta" — güneş kremi/SPF'li üründe
+  beklenen, etkili bileşenlerdir. Listenin ilk 3 sırasında VE Oxybenzone veya Octocrylene ise
+  "riskli"ye yükselt (en çok tartışılan iki filtre budur).
+- MİNERAL GÜNEŞ FİLTRELERİ (Zinc Oxide, Titanium Dioxide — güneş filtresi/SPF bileşeni olarak):
+  VARSAYILAN "iyi" — sırası ne olursa olsun "iyi" kalır, fiziksel filtreler kimyasal filtrelere göre
+  daha az tartışmalı ve hassas ciltte tercih edilir.
+- NEMLENDİRİCİLER/HUMEKTANLAR (Glycerin, Propylene Glycol, Butylene Glycol, Hyaluronic Acid, Sodium
+  Hyaluronate, Panthenol, Urea, Sorbitol, Betaine): VARSAYILAN "iyi" — sırası ne olursa olsun "iyi"
+  kalır.
+- AHA/BHA AKTİF PEELING ASİTLERİ (Glycolic Acid, Lactic Acid, Mandelic Acid, Salicylic Acid — aktif
+  peeling ajanı olarak; Citric Acid sadece pH düzenleyici olarak kullanılıyorsa bu kategoriye
+  GİRMEZ, o zaman "iyi" kabul et): VARSAYILAN "orta" — sırası ne olursa olsun en az "orta" kal, ASLA
+  "iyi"ye düşürme. Listenin ilk 3 sırasında ise "riskli"ye yükselt.
+- SİLİKONLAR (Dimethicone, Cyclopentasiloxane, Cyclohexasiloxane, Dimethiconol, Amodimethicone,
+  Phenyl Trimethicone): VARSAYILAN "iyi" — sırası ne olursa olsun "iyi" kalır.
+- RETİNOİDLER (Retinol, Retinyl Palmitate, Retinaldehyde, Hydroxypinacolone Retinoate): VARSAYILAN
+  "orta" — güneş hassasiyeti/gebelik uyarısı taşıyan aktif bileşenlerdir, sırası ne olursa olsun en
+  az "orta" kal, ASLA "iyi"ye düşürme.
+- ANTİOKSİDAN VİTAMİNLER (Tocopherol/Vitamin E, Tocopheryl Acetate, Ascorbic Acid/Vitamin C, Sodium
+  Ascorbyl Phosphate, Niacinamide/Vitamin B3): VARSAYILAN "iyi" — sırası ne olursa olsun "iyi" kalır.
+- RENKLENDİRİCİLER/PİGMENTLER (CI ile başlayan numaralar — ör. CI 77891, Mica, Iron Oxides, Titanium
+  Dioxide — renklendirici/kapatıcı olarak kullanıldığında): VARSAYILAN "iyi" — sırası ne olursa olsun
+  "iyi" kalır, inert/düşük riskli bileşenlerdir.
+
+HER ZAMAN "RİSKLİ" KABUL EDİLMESİ GEREKEN BİLİNEN YÜKSEK RİSKLİ MADDELER (istisnasız kural — 8 Eylül
+2026 eklendi): MCI/Methylisothiazolinone, Methylchloroisothiazolinone, Triclosan, Formaldehyde,
+Hydroquinone, Coal Tar, Diethyl Phthalate/DEP, DBP/Dibutyl Phthalate, DEHP, Butylphenyl
+Methylpropional/Lilial, Atranol, Chloroatranol, HICC/Hydroxyisohexyl 3-Cyclohexene
+Carboxaldehyde/Lyral gibi maddeler LİSTEDEKİ SIRASI NE OLURSA OLSUN HER ZAMAN "riskli" kabul
+edilmeli — yukarıdaki hiçbir kategorinin "orta"/"iyi" varsayılanıyla KARIŞTIRMA, bunlar için
+istisna/pozisyon değerlendirmesi yapılmaz.
 
 "ingredients" İÇİN EN ÖNEMLİ KURAL — TAM LİSTE İSTİYORUZ:
 Etikette/içerik listesinde okuyabildiğin HER BİLEŞENİ, etiketteki sırasıyla, TEK TEK yaz.
