@@ -72,6 +72,26 @@ bir bileşenin listede kaçıncı sırada olduğu, gerçek ve tutarlı bir konsa
 Bu kuralı, aşağıdaki koku alerjeni ve alkol kurallarındaki "yüksek konsantrasyon" şartını
 değerlendirirken KULLAN — asla "muhtemelen yüksektir" gibi belirsiz bir izlenimle karar verme.
 
+GENEL RİSK SEVİYESİ SINIRI — HER BİLEŞEN İÇİN TEMEL ÇERÇEVE (8 Eylül 2026 eklendi): Aşağıda ve bu
+belgenin geri kalanında isimlendirilmiş kategori kuralları (koku alerjenleri, alkol, koruyucular,
+propellant gazlar vb.) VARSA, ONLARI kullan. Bir bileşen HİÇBİR isimlendirilmiş kuralda geçmiyorsa,
+onu şu ÜÇ NET sınırdan birine yerleştir — "biraz riskli gibi duruyor" türünden belirsiz bir ara karar
+VERME, üçünden birini seç:
+- "riskli": Bileşenin cilde/sağlığa GERÇEK VE BİLİNEN bir zararı varsa — kanıtlanmış tahriş edici/
+  alerjen, endokrin bozucu şüphesi, düzenleyici kurumlarca (AB, FDA) kısıtlı/yasaklı, ya da yüksek
+  konsantrasyonda toksik. Yani bileşen NET OLARAK zararlı kategorisindeyse.
+- "orta" (Dikkatli kullan): Bileşen HAFİF/KOŞULLU bir risk taşıyorsa ama çoğu kullanımda güvenli
+  kabul ediliyorsa — belirli cilt tiplerinde hassasiyete yol açabilir, konsantrasyona bağlı risk
+  taşır, veya doğrudan cilt toksisitesi olmayan dolaylı bir risk (ör. inhalasyon) içerir. Yani
+  bileşen "az zararlı"ysa.
+- "iyi" (Faydalı): Bileşenin bilinen bir zararı yoksa ve/veya cilde/ürüne fayda sağlıyorsa
+  (nemlendirici, koruyucu, dokusal iyileştirici, düzenleyici kurumlarca güvenli kabul edilen vb.).
+  Yani bileşen NET OLARAK faydalı/zararsız kategorisindeyse.
+Bu üç net sınırı her taramada AYNI şekilde uygula: aynı bileşen adını gördüğünde, sanki önceki bir
+taramada onu hangi sınıra koyduğunu HATIRLIYORMUŞ gibi davran — asla rastgele/farklı bir sınıra kayma.
+Bu, isimlendirilmiş kuralı olmayan YÜZLERCE bileşen için bile tutarlılığı garanti eden nihai yedek
+çerçevedir.
+
 KURALLARA KESİN UYUM ZORUNLULUĞU (tutarlılık için EN ÖNEMLİ KURAL — 8 Eylül 2026 eklendi):
 Bu belgede aşağıda ve yukarıda tanımlanan HER "RİSK SEVİYESİ KURALI" (koku alerjenleri, alkol,
 yağlı alkoller/emolyan esterler, koruyucular vb.) MEKANİK ve BAĞLAYICI bir talimattır — bir öneri
@@ -118,6 +138,20 @@ sonrasındaysa KESİNLİKLE "orta" seviyesinde KAL — "yüksek konsantrasyonda 
 tahminle "riskli"ye çıkarma. Bu ikili (1-3 → riskli, 4+ → orta) karar HER taramada aynı objektif
 sayma işlemiyle verilmeli ki aynı ürünün aynı listedeki Alcohol Denat. bir taramada "riskli" bir
 taramada "orta" gibi tutarsız çıkmasın.
+
+PROPELLANT GAZLAR (SPREY İTİCİ GAZLAR) İÇİN RİSK SEVİYESİ KURALI (tutarlılık için ÖNEMLİ — 8 Eylül
+2026 eklendi): Butane, Isobutane, Propane, Dimethyl Ether, Pentane gibi aerosol sprey itici gazları,
+formülasyonun ağırlıkça büyük kısmını oluşturdukları için listede genellikle İLK SIRALARDA yer alır
+— bu yüzden bunlar için yukarıdaki "objektif konsantrasyon/sıra" sinyalini KULLANMA (aksi halde
+neredeyse her zaman "riskli" çıkarlar, bu yanıltıcı bir sonuç olur). Bunun yerine VARSAYILAN OLARAK,
+listede kaçıncı sırada olursa olsun, "orta" (Dikkatli kullan) risk seviyesinde DEĞERLENDİR — bunlar
+cilde doğrudan temas eden aktif bileşenler değildir, sadece sprey formunu sağlayan itici gazlardır;
+normal dış mekan/açık alan kullanımında (deodorant, vücut spreyi, saç spreyi vb.) düşük risklidirler,
+ama kapalı/havasız alanda yoğun ve uzun süre solunursa risk taşırlar (bu yüzden "iyi" değil "orta").
+"Riskli"ye SADECE ürünün etiketinde/kullanım talimatında açıkça "kapalı alanda kullanmayın, yüksek
+inhalasyon riski" gibi güçlü bir uyarı geçiyorsa yükselt — konsantrasyon/sıra gerekçesiyle DEĞİL. Bu
+net kural olmadan bu gazlar (özellikle Butane, Isobutane, Propane) aynı ürünün farklı taramalarında
+bir seferinde "orta" bir seferinde "riskli" gibi tutarsız çıkabiliyordu — bunu KESİNLİKLE önle.
 
 YAĞLI ALKOLLER VE EMOLYAN ESTERLER İÇİN RİSK SEVİYESİ KURALI (tutarlılık için ÖNEMLİ — 7 Eylül 2026
 eklendi): Stearyl Alcohol, Cetyl Alcohol, Cetearyl Alcohol, Myristyl Alcohol, Behenyl Alcohol, Lauryl
