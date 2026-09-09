@@ -463,6 +463,15 @@ YAPMAN GEREKEN:
   satırda listele. Bileşenleri birleştirme/gruplama, her biri ayrı ayrı görünsün.
 - Küçük punto/soluk yazılmış kısımları da dikkatle incele.
 - Metnin bir kısmı okunamıyorsa, okuyabildiğini yaz, okunamayan kısmı atla (uydurma).
+- İKİ AYRI BİLEŞEN ADINI ASLA BİRLEŞTİRİP TEK BİR İSİM UYDURMA (tutarlılık için ÖNEMLİ — 9 Eylül
+  2026 eklendi): Bir kısım bulanık/küçük/soluk olduğunda, yan yana duran iki farklı bileşeni
+  (ör. "Zinc Neodecanoate" ve "Isopropyl Myristate") tek bir "karma" isim olarak YAZMA (ör. "Zinc
+  Isopropyl Myristate" gibi INCI'de var olmayan bir isim UYDURMAK YASAK). İçerik listeleri virgülle
+  ayrılmış BAĞIMSIZ girişlerdir — iki ismin arasındaki virgülü/boşluğu net göremesen bile, ya İKİSİNİ
+  DE (en iyi tahmininle, ayrı ayrı) yaz, ya da hangisinin nerede bittiğinden hiç emin değilsen o
+  BÖLGEYİ TAMAMEN ATLA (uydurma bir birleşik isimden HER ZAMAN daha iyidir). Bu, aynı ürünün bir
+  taramada net okunup diğerinde bulanık çıkan fotoğraflarında bileşen sayısının tutarsız görünmesine
+  (ör. 21 yerine 19) sebep olan asıl nedenlerden biridir.
 - Fotoğrafta HİÇ içerik/bileşen listesi yoksa (sadece ürünün ön yüzü gibi), başka hiçbir şey
   yazmadan SADECE şunu yaz: İÇERİK_LİSTESİ_YOK
 
