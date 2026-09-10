@@ -1,27 +1,49 @@
 import React, { useCallback, useRef, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, Dimensions } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  Image,
+  Dimensions,
+  TextInput,
+  ScrollView,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { CameraView, useCameraPermissions, BarcodeScanningResult, BarcodeType } from "expo-camera";
+import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
+import { LinearGradient } from "expo-linear-gradient";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
-import { colors, spacing, radius } from "../theme";
+import { colors, spacing, radius, fontFamily, shadows, accent as accentRamp, primaryGradient, primaryGradientLocations } from "../theme";
+import { CameraIcon, CloseIcon, FlashIcon, PlusIcon } from "../components/Icon";
+
+// Kamera önizlemesi her zaman KOYU bir zemin üzerinde (canlı kamera görüntüsü)
+// — bu yüzden üstteki kontroller/etiketler ana (krem) temanın renkleriyle
+// değil, tasarım kaynağındaki (02/04 ekranları) kendi koyu-zemin paletiyle
+// çiziliyor. Bunlar bilinçli olarak colors.* içinde YOK, çünkü sadece bu
+// koyu kamera overlay'inde kullanılıyorlar.
+const OVERLAY_TEXT = "#F3EFE8";
+const OVERLAY_MINT = "#9BD9AE";
+const OVERLAY_AMBER_TEXT = "#FBD9A0";
+const OVERLAY_AMBER_BG = "rgba(198,138,46,0.2)";
+const OVERLAY_AMBER_BORDER = "rgba(198,138,46,0.45)";
+const OVERLAY_BANNER_BG = "rgba(20,19,18,0.72)";
+const OVERLAY_BTN_BG = "rgba(0,0,0,0.4)";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Scan">;
 
-// Ürünlerde karşılaşılabilecek barkod formatları. Perakende ürünlerde asıl
-// kullanılanlar EAN/UPC ailesi, ama bazı kozmetik kutularında code128 / itf14
-// da basılı olabiliyor — algılama şansını artırmak için hepsini dinliyoruz.
-const PRODUCT_BARCODE_TYPES: BarcodeType[] = [
-  "ean13",
-  "ean8",
-  "upc_a",
-  "upc_e",
-  "code128",
-  "code39",
-  "itf14",
-];
+// ÖNEMLİ: Barkod tarama TAMAMEN KALDIRILDI. Denemelerde barkod algılama —
+// hem gerçek barkodu okuyup Open Beauty Facts'te bulamaması hem de arka
+// planda sürekli barkod arayıp (ör. üründeki küçük bir barkodu görüş
+// alanının kenarında yakalayıp) deklanşör davranışını "barkod çek" moduna
+// kaçırması yüzünden — kullanıcıyı asıl istediğimiz İÇERİK LİSTESİ +
+// "ürün nedir/ne için kullanılacak" formundan uzaklaştırıyordu. Artık her
+// çekim doğrudan bu forma gidiyor, barkodla ilgili hiçbir kod çalışmıyor.
+// (Backend'deki Open Beauty Facts entegrasyonu dokunulmadan kalıyor ama
+// client hiçbir zaman barkod göndermediği için hiç tetiklenmiyor.)
 
 // ÖNEMLİ DÜZELTME: expo-camera'nın getAvailableLensesAsync() fonksiyonu lens
 // adlarını iOS'un "localizedName" değeri olarak döner (örn. "Back Camera",
@@ -36,15 +58,60 @@ const PRODUCT_BARCODE_TYPES: BarcodeType[] = [
 // "geçilecek" başka bir lens yok.
 const MAIN_LENS_EXACT = "Back Camera";
 
+// "Bu ürünü ne için kullanmak istiyorsun?" artık serbest metin DEĞİL —
+// kullanıcı uğraşıp yazmak istemeyebiliyor, bu yüzden seçilebilir hazır
+// seçenekler sunuyoruz. Önce ürün kategorisi seçiliyor (bu, hangi "ne için"
+// seçeneklerinin gösterileceğini belirliyor), sonra o kategoriye uygun
+// amaç seçenekleri çıkıyor. Seçilenler backend'e aynı "userIntent" metin
+// alanına (virgülle birleştirilip) gönderiliyor — pipeline'da değişiklik
+// gerekmedi.
+const PRODUCT_CATEGORIES = [
+  "Şampuan / Saç Bakımı",
+  "Yüz Bakımı / Krem",
+  "Vücut / Duş",
+  "Parfüm / Deodorant",
+  "Diğer",
+] as const;
+type ProductCategory = (typeof PRODUCT_CATEGORIES)[number];
+
+const INTENT_OPTIONS: Record<ProductCategory, string[]> = {
+  "Şampuan / Saç Bakımı": [
+    "Saç Dökülmesine Karşı",
+    "Kepeğe Karşı",
+    "Nemlendirme / Onarım",
+    "Hacim / Canlandırma",
+    "Boyalı Saç Bakımı",
+    "Günlük Temizlik",
+  ],
+  "Yüz Bakımı / Krem": [
+    "Nemlendirme",
+    "Anti-Aging / Kırışıklık",
+    "Akne / Sivilce",
+    "Leke / Ton Eşitleme",
+    "Gözenek Sıkılaştırma",
+    "Güneş Koruma",
+  ],
+  "Vücut / Duş": ["Nemlendirme", "Peeling / Arındırma", "Sıkılaştırma", "Ferahlık"],
+  "Parfüm / Deodorant": ["Ter Kontrolü", "Koku / Ferahlık", "Hassas Cilt İçin"],
+  Diğer: ["Genel Bakım", "Belirli Bir Amacım Yok"],
+};
+
 // Ekrandaki çerçeveleme kılavuzunun boyutu (ekranın yüzdesi olarak). Aynı
 // değerler hem kılavuzu çizmek hem de fotoğrafı kırpmak için kullanılıyor —
 // yani kullanıcı çerçevenin içine ne koyduysa AI'ye giden görsel tam olarak o.
-const GUIDE_W = 0.82;
-const GUIDE_H = 0.42;
+// 7 Eylül düzeltmesi: kullanıcı geri bildirimi — çerçeve, yazıyı yakalamak
+// için küçük geliyordu. %82/%42'den %92/%68'e büyütüldü (guideWrap'in KALAN
+// dikey alanına göre yüzde — bkz. aşağıdaki guideWrap/guideFrame stilleri).
+// Not: cropToGuideFrame() artık çerçevenin GERÇEK ölçülmüş konumunu (guideRect)
+// kullandığı için, bu değerleri büyütmek fotoğrafın kırpılan bölgesini de
+// otomatik olarak aynı oranda büyütür — ayrıca bir şey güncellemeye gerek yok.
+const GUIDE_W = 0.92;
+const GUIDE_H = 0.68;
 
 /**
- * Arka yüz (içerik listesi) fotoğrafını, ekrandaki kılavuz çerçevesine denk
- * gelen bölgeye kırpar.
+ * Çekilen fotoğrafı, ekrandaki kılavuz çerçevesine denk gelen bölgeye kırpar.
+ * İçerik/bileşen listesi fotoğrafları için kullanılıyor (yakın çekim, yazının
+ * okunabilir kalması kritik).
  *
  * NEDEN GEREKLİ: Kullanıcı ürünü biraz uzaktan çektiğinde, içerik listesi
  * 4000x3000'lik fotoğrafın küçücük bir bölgesinde kalıyor. Görsel API'ye
@@ -81,7 +148,22 @@ async function resizeForUpload(uri: string, width?: number, height?: number): Pr
   }
 }
 
-async function cropToGuideFrame(uri: string, photoW?: number, photoH?: number): Promise<string> {
+// 7 Eylül düzeltmesi: Bu fonksiyon eskiden kılavuz çerçevesinin ekranın TAM
+// ORTASINDA olduğunu VARSAYIYORDU (GUIDE_W/GUIDE_H yüzdeleriyle hesaplanmış).
+// Kamera overlay'indeki çakışmayı düzeltmek için çerçeveyi topBar/bottomBar
+// ile aynı flex sütununa taşıyınca (aralarında KALAN boşlukta ortalanıyor
+// artık — bkz. aşağıdaki JSX'teki not), bu varsayım artık YANLIŞ: çerçeve
+// ekranın ortasında değil, topBar'ın yüksekliğine göre değişen bir yerde
+// duruyor. O yüzden artık çerçevenin GERÇEK ekran konumunu (guideRect —
+// measureInWindow ile ölçülüyor, bkz. component içindeki guideFrameRef) alıp
+// doğrudan onu kullanıyoruz; GUIDE_W/GUIDE_H'ye dayalı eski hesap sadece
+// guideRect henüz ölçülememişse (ör. çok hızlı bir çekim) YEDEK olarak kalıyor.
+async function cropToGuideFrame(
+  uri: string,
+  photoW?: number,
+  photoH?: number,
+  guideRect?: { x: number; y: number; width: number; height: number } | null
+): Promise<string> {
   if (!photoW || !photoH) return uri;
   try {
     const { width: screenW, height: screenH } = Dimensions.get("window");
@@ -93,11 +175,26 @@ async function cropToGuideFrame(uri: string, photoW?: number, photoH?: number): 
     const offsetX = (photoW - visibleW) / 2; // ekran dışında kalan kenar payı
     const offsetY = (photoH - visibleH) / 2;
 
-    // Kılavuz çerçevesinin fotoğraf üzerindeki karşılığı
-    let cropW = (visibleW * GUIDE_W);
-    let cropH = (visibleH * GUIDE_H);
-    let cropX = offsetX + (visibleW - cropW) / 2;
-    let cropY = offsetY + (visibleH - cropH) / 2;
+    let cropW: number;
+    let cropH: number;
+    let cropX: number;
+    let cropY: number;
+
+    if (guideRect && guideRect.width > 0 && guideRect.height > 0) {
+      // Kılavuz çerçevesinin GERÇEK (ölçülmüş) ekran konumu — ekran
+      // koordinatlarından fotoğraf koordinatlarına aynı "cover" ölçeğiyle
+      // çevriliyor.
+      cropW = guideRect.width / scale;
+      cropH = guideRect.height / scale;
+      cropX = offsetX + guideRect.x / scale;
+      cropY = offsetY + guideRect.y / scale;
+    } else {
+      // Yedek: guideRect ölçülemediyse eski varsayım (tam ekranda ortalı).
+      cropW = visibleW * GUIDE_W;
+      cropH = visibleH * GUIDE_H;
+      cropX = offsetX + (visibleW - cropW) / 2;
+      cropY = offsetY + (visibleH - cropH) / 2;
+    }
 
     // Kullanıcının çerçevelemesi biraz kaymış olabilir — her yönde %10 pay
     // bırakıyoruz ki etiketin kenarı kesilmesin.
@@ -122,8 +219,8 @@ async function cropToGuideFrame(uri: string, photoW?: number, photoH?: number): 
     // eklemeye gerek yok.
     const longestCropped = Math.max(cropW, cropH);
     if (longestCropped > MAX_UPLOAD_DIMENSION) {
-      const scale = MAX_UPLOAD_DIMENSION / longestCropped;
-      ctx.resize({ width: Math.round(cropW * scale), height: Math.round(cropH * scale) });
+      const downscale = MAX_UPLOAD_DIMENSION / longestCropped;
+      ctx.resize({ width: Math.round(cropW * downscale), height: Math.round(cropH * downscale) });
     }
     const rendered = await ctx.renderAsync();
     const saved = await rendered.saveAsync({ format: SaveFormat.JPEG, compress: 0.95 });
@@ -134,27 +231,79 @@ async function cropToGuideFrame(uri: string, photoW?: number, photoH?: number): 
   }
 }
 
-// idle: normal tarama modu (barkod dinliyor, ilk/tek fotoğrafı bekliyor)
-// awaitingBackChoice: ön yüz çekildi, kullanıcıya arka yüzü (içerik listesi)
-//   de çekmek isteyip istemediği soruluyor
-// capturingBack: kullanıcı "arka yüzü çek" dedi, bir sonraki deklanşör
-//   basışı arka yüz/içerik listesi fotoğrafı olarak kaydedilecek
-// backPreview: arka yüz çekildi, kullanıcıya büyük halde gösteriliyor —
-//   yazılar okunuyor mu diye kendisi kontrol edip onaylıyor ya da tekrar
-//   çekiyor. Bulanık bir fotoğrafın analize gitmesini bu adım engelliyor.
-type Stage = "idle" | "awaitingBackChoice" | "capturingBack" | "backPreview";
+// idle: normal tarama modu (ana fotoğrafı bekliyor)
+// capturingSecond: kullanıcı ikinci bir fotoğraf ekliyor (etiketin devamı ya
+//   da klasik arka yüz) — bir sonraki deklanşör basışı bu fotoğrafı kaydeder
+// details: fotoğraf(lar) çekildi, kullanıcı ürün adı/içerik/kullanım amacı
+//   gibi opsiyonel bilgileri girip analizi başlatıyor
+type Stage = "idle" | "capturingSecond" | "details";
+
+function Chip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  return (
+    <TouchableOpacity style={[styles.chip, selected && styles.chipSelected]} onPress={onPress} activeOpacity={0.8}>
+      <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
 
 export default function ScanScreen({ navigation }: Props) {
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
   const [isCapturing, setIsCapturing] = useState(false);
-  const [detectedBarcode, setDetectedBarcode] = useState<string | null>(null);
   const [torchOn, setTorchOn] = useState(false);
   const [stage, setStage] = useState<Stage>("idle");
-  const [frontUri, setFrontUri] = useState<string | null>(null);
-  const [backUri, setBackUri] = useState<string | null>(null);
   const [selectedLens, setSelectedLens] = useState<string | undefined>(undefined);
-  const barcodeLockRef = useRef(false);
+
+  // 7 Eylül düzeltmesi: kılavuz çerçevesi artık topBar'ın yüksekliğine göre
+  // KAYABİLEN bir konumda (bkz. guideWrap/guideFrame JSX'i aşağıda) — bu
+  // yüzden cropToGuideFrame()'in doğru bölgeyi kırpabilmesi için çerçevenin
+  // GERÇEK ekran konumunu ölçüp burada tutuyoruz. measureGuideFrame,
+  // guideFrame View'inin onLayout'unda çağrılıyor; her topBar boyu
+  // değiştiğinde (banner metni satır sayısı değiştiğinde vb.) yeniden ölçülür.
+  const guideFrameRef = useRef<View>(null);
+  const [guideRect, setGuideRect] = useState<{ x: number; y: number; width: number; height: number } | null>(
+    null
+  );
+  const measureGuideFrame = useCallback(() => {
+    guideFrameRef.current?.measureInWindow((x, y, width, height) => {
+      if (width > 0 && height > 0) {
+        setGuideRect({ x, y, width, height });
+      }
+    });
+  }, []);
+
+  // ÖNEMLİ MANTIK DEĞİŞİKLİĞİ: Barkod/Open Beauty Facts tek başına güvenilir
+  // değil (çoğu üründe kayıt yok ya da eksik) — bu yüzden barkodsuz akışta
+  // artık varsayılan olarak doğrudan İÇERİK/BİLEŞEN LİSTESİ fotoğrafını
+  // istiyoruz (en değerli veri bu), ürünün ön yüzünü değil. Bazı ürünlerde
+  // (ör. tarak, fırça gibi içerik listesi olmayan ürünler) kullanıcı bunu
+  // "noIngredientsMode" ile kapatıp eski ön+arka yüz akışına geçebiliyor.
+  const [noIngredientsMode, setNoIngredientsMode] = useState(false);
+  const [primaryUri, setPrimaryUri] = useState<string | null>(null);
+  const [secondUri, setSecondUri] = useState<string | null>(null);
+
+  // Barkod/görsel AI marka tanısa bile tam ürünü/varyantı kaçırabiliyor (ör.
+  // "saç dökülmesine karşı" olduğunu anlayamama) — bu yüzden "details"
+  // ekranında ürün adını HER ZAMAN görünür şekilde soruyoruz. ARTIK ZORUNLU
+  // (20 Ağustos 2026): testlerde, ürün adı boş bırakıldığında AI aynı ürünü
+  // farklı taramalarda farklı isim/bileşenle karıştırabiliyordu (ör. bir
+  // etikette birden fazla ürün adı geçtiğinde); ayrıca isim olmadan
+  // index.js'teki önbellek de devreye giremiyor. O yüzden isim girilmeden
+  // "Analiz Et" ilerlemiyor — bkz. submitDetails() ve nameError state'i.
+  const [productNameHint, setProductNameHint] = useState("");
+  const [nameError, setNameError] = useState(false);
+  // İçerik listesi fotoğraftan net okunamıyorsa (kavisli şişe, küçük/soluk
+  // yazı vb.) AI genel/tipik bir formülasyona düşüyor — kullanıcı etikette
+  // yazan listeyi buraya elle yazabilirse (kopyala-yapıştır dahil), AI'ye
+  // bunu DOĞRULANMIŞ veri olarak veriyoruz. Bu alan hâlâ katlanır/opsiyonel —
+  // iki fotoğraf genelde yeterli oluyor, sadece gerektiğinde açılıyor.
+  const [showIngredientsHint, setShowIngredientsHint] = useState(false);
+  const [ingredientsHint, setIngredientsHint] = useState("");
+  // "Bu ürünü ne için kullanmak istiyorsun?" — artık serbest metin değil,
+  // seçilebilir chip'ler (kullanıcı yazmak zorunda kalmasın diye). Önce
+  // kategori seçiliyor, ardından o kategoriye uygun amaç seçenekleri çıkıyor.
+  const [productCategoryHint, setProductCategoryHint] = useState<ProductCategory | null>(null);
+  const [selectedIntents, setSelectedIntents] = useState<string[]>([]);
 
   // Kamera hazır olunca cihazdaki lensleri sorup ana (1x geniş açı) lensi
   // açıkça seçiyoruz. iOS dışında bu API yok, o yüzden hata durumunu sessizce
@@ -183,11 +332,25 @@ export default function ScanScreen({ navigation }: Props) {
     }
   }, []);
 
-  const goToAnalyzing = (imageUri: string, backImageUri?: string, barcode?: string) => {
-    navigation.replace("Analyzing", { imageUri, backImageUri, barcode });
+  const goToAnalyzing = (
+    imageUri: string,
+    backImageUri?: string,
+    userProvidedName?: string,
+    userProvidedIngredients?: string,
+    userIntent?: string,
+    bothImagesAreIngredients?: boolean
+  ) => {
+    navigation.replace("Analyzing", {
+      imageUri,
+      backImageUri,
+      userProvidedName,
+      userProvidedIngredients,
+      userIntent,
+      bothImagesAreIngredients,
+    });
   };
 
-  const takePhoto = async (opts?: { barcode?: string; isBackShot?: boolean }) => {
+  const takePhoto = async (opts?: { isSecondShot?: boolean }) => {
     if (!cameraRef.current || isCapturing) return;
     try {
       setIsCapturing(true);
@@ -196,52 +359,31 @@ export default function ScanScreen({ navigation }: Props) {
       const photo = await cameraRef.current.takePictureAsync({ quality: 1 });
       if (!photo?.uri) return;
 
-      if (opts?.barcode) {
-        // Barkod otomatik algılandığında tek fotoğraf yeterli — barkod zaten
-        // ürünü güçlü şekilde tanımlıyor, iki adımlı akışa gerek yok.
-        const resized = await resizeForUpload(photo.uri, photo.width, photo.height);
-        goToAnalyzing(resized, undefined, opts.barcode);
+      if (opts?.isSecondShot) {
+        // İkinci fotoğraf HER ZAMAN çerçeveye kırpılıyor: ya içerik listesinin
+        // devamı (kavisli şişede etiket tek karede sığmadıysa) ya da klasik
+        // arka yüz/içerik listesi — ikisi de yakın çekim gerektiriyor.
+        const cropped = await cropToGuideFrame(photo.uri, photo.width, photo.height, guideRect);
+        setSecondUri(cropped);
+        setStage("details");
         return;
       }
 
-      if (opts?.isBackShot) {
-        // İki adımlı akışın 2. fotoğrafı: içerik listesinin olduğu arka yüz.
-        // Çerçeve içine kırpıyoruz (yazıların okunabilir kalması için kritik),
-        // sonra kullanıcıya kırpılmış halini gösterip onaylatıyoruz — böylece
-        // kullanıcı AI'nin göreceği görüntünün TAM OLARAK aynısını görüyor.
-        const cropped = await cropToGuideFrame(photo.uri, photo.width, photo.height);
-        setBackUri(cropped);
-        setStage("backPreview");
-        return;
-      }
-
-      // İlk fotoğraf (genelde ön yüz). Hemen analiz etmek yerine kullanıcıya
-      // arka yüzü/içerik listesini de çekmesini öneriyoruz: AI'nin ön yüzden
-      // tahmin yürütmesindense gerçek içerik listesinden okuması çok daha
-      // doğru sonuç veriyor.
-      const resizedFront = await resizeForUpload(photo.uri, photo.width, photo.height);
-      setFrontUri(resizedFront);
-      setStage("awaitingBackChoice");
+      // Ana fotoğraf. noIngredientsMode'da bu ÖN yüz (ürünün tamamı
+      // görünmeli, kırpma YOK — eski davranış). Normal (varsayılan) modda bu
+      // doğrudan İÇERİK/BİLEŞEN LİSTESİ fotoğrafı — çerçeveye kırpılır, çünkü
+      // artık en değerli/öncelikli veri bu.
+      const primary = noIngredientsMode
+        ? await resizeForUpload(photo.uri, photo.width, photo.height)
+        : await cropToGuideFrame(photo.uri, photo.width, photo.height, guideRect);
+      setPrimaryUri(primary);
+      setStage("details");
     } catch (e) {
       Alert.alert("Hata", "Fotoğraf çekilemedi, tekrar dener misin?");
     } finally {
       setIsCapturing(false);
     }
   };
-
-  // Barkod algılandığında: kısa bir onay gösterip otomatik fotoğraf çekip
-  // devam ediyoruz. barcodeLockRef, kamera görüş alanında barkod dururken
-  // onBarcodeScanned'in saniyede defalarca tetiklenmesini engelliyor.
-  // Gecikme (950ms), barkod algılandığı anda kameranın henüz netlenmemiş
-  // olabileceği için bilinçli olarak konuldu.
-  const handleBarcodeScanned = useCallback((result: BarcodeScanningResult) => {
-    if (barcodeLockRef.current || isCapturing) return;
-    barcodeLockRef.current = true;
-    setDetectedBarcode(result.data);
-    setTimeout(() => {
-      takePhoto({ barcode: result.data });
-    }, 950);
-  }, [isCapturing]);
 
   const pickFromGallery = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -256,23 +398,56 @@ export default function ScanScreen({ navigation }: Props) {
     }
   };
 
-  const skipBackShot = () => {
-    if (!frontUri) return;
-    goToAnalyzing(frontUri);
+  const retakePrimary = () => {
+    setPrimaryUri(null);
+    // Ana fotoğraf değişince ikinci fotoğraf da tutarsızlaşabilir (ör. moda
+    // geçişi), temizleyip baştan başlatıyoruz.
+    setSecondUri(null);
+    setStage("idle");
   };
 
-  const startBackShot = () => {
-    setStage("capturingBack");
+  const startSecondShot = () => setStage("capturingSecond");
+
+  const retakeSecond = () => {
+    setSecondUri(null);
+    setStage("capturingSecond");
   };
 
-  const confirmBackShot = () => {
-    if (!frontUri || !backUri) return;
-    goToAnalyzing(frontUri, backUri);
+  const toggleIntent = (opt: string) => {
+    setSelectedIntents((prev) => (prev.includes(opt) ? prev.filter((x) => x !== opt) : [...prev, opt]));
   };
 
-  const retakeBackShot = () => {
-    setBackUri(null);
-    setStage("capturingBack");
+  const selectCategory = (cat: ProductCategory) => {
+    // Kategori değişince o kategoriye ait olmayan seçili amaçlar anlamsız
+    // kalır — temizliyoruz.
+    setProductCategoryHint((prev) => (prev === cat ? null : cat));
+    setSelectedIntents([]);
+  };
+
+  const submitDetails = () => {
+    if (!primaryUri) return;
+    // Ürün adı artık zorunlu — bkz. productNameHint tanımındaki not. Boşsa
+    // analize hiç başlamıyoruz, kullanıcıya kırmızı uyarı gösteriyoruz.
+    if (!productNameHint.trim()) {
+      setNameError(true);
+      return;
+    }
+    goToAnalyzing(
+      primaryUri,
+      secondUri || undefined,
+      productNameHint,
+      ingredientsHint,
+      // Seçilen amaç chip'leri tek bir metne birleştirilip backend'e aynı
+      // "userIntent" alanıyla gidiyor — pipeline'da hiçbir değişiklik
+      // gerekmedi, sadece bu değerin NASIL üretildiği değişti (serbest metin
+      // yerine seçim).
+      selectedIntents.join(", "),
+      // İki fotoğraf da içerik/bileşen listesiyse (noIngredientsMode kapalı
+      // ve ikinci fotoğraf çekildiyse), backend'e "bunlar ön/arka değil,
+      // aynı etiketin iki parçası" diye ayrı bir talimat kullanması için
+      // haber veriyoruz.
+      !noIngredientsMode && !!secondUri
+    );
   };
 
   if (!permission) {
@@ -280,44 +455,146 @@ export default function ScanScreen({ navigation }: Props) {
   }
 
   if (!permission.granted) {
+    // Tasarım kaynağı: "C Kamera izni" ekranı — ikon rozeti, başlık, açıklama,
+    // gradyanlı ana buton + krem ikincil buton. Birebir aktarıldı.
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.permissionBox}>
+          <View style={styles.permissionIconBadge}>
+            <CameraIcon size={40} color={colors.primary} strokeWidth={2.75} />
+          </View>
+          <Text style={styles.permissionTitle}>Kameraya erişim gerekiyor</Text>
           <Text style={styles.permissionText}>
-            Ürün etiketini taramak için kamera iznine ihtiyacımız var.
+            Etiketi okuyabilmek için kamerayı kullanıyoruz. Fotoğraflar yalnızca analiz için işlenir,
+            paylaşılmaz.
           </Text>
-          <TouchableOpacity style={styles.permissionBtn} onPress={requestPermission}>
-            <Text style={styles.permissionBtnText}>İzin Ver</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.galleryLinkBtn} onPress={pickFromGallery}>
-            <Text style={styles.galleryLinkText}>veya galeriden fotoğraf seç</Text>
-          </TouchableOpacity>
+          <View style={styles.permissionActions}>
+            <TouchableOpacity onPress={requestPermission} activeOpacity={0.9}>
+              <LinearGradient
+                colors={primaryGradient}
+                locations={primaryGradientLocations}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.permissionBtn}
+              >
+                <Text style={styles.permissionBtnText}>İzin ver</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.galleryLinkBtn} onPress={pickFromGallery} activeOpacity={0.85}>
+              <Text style={styles.galleryLinkText}>Galeriden fotoğraf seç</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </SafeAreaView>
     );
   }
 
-  // Arka yüz fotoğrafı önizlemesi: kullanıcı yazıların okunaklı olduğunu
-  // kendi gözüyle doğrulamadan analiz başlamıyor.
-  if (stage === "backPreview" && backUri) {
+  // Detay formu: fotoğraf(lar) çekildi, kullanıcı ürün adı/içerik/kullanım
+  // amacı gibi opsiyonel bilgileri girip analizi başlatıyor. Her çekim
+  // (barkod yok artık) buraya uğruyor.
+  if (stage === "details" && primaryUri) {
     return (
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.previewContainer}>
-          <Text style={styles.previewTitle}>Bileşen isimlerini okuyabiliyor musun?</Text>
+      <SafeAreaView style={styles.safe} edges={["top"]}>
+        <ScrollView contentContainerStyle={styles.detailsContainer} keyboardShouldPersistTaps="handled">
+          <Text style={styles.previewTitle}>Ürün Detayları</Text>
           <Text style={styles.previewSubtitle}>
-            AI'ye gönderilecek görüntü aynen bu. Bileşen isimlerini burada sen okuyamıyorsan
-            AI de okuyamaz — "Tekrar Çek" deyip telefonu etikete daha çok yaklaştır.
+            {noIngredientsMode
+              ? "Ön yüz fotoğrafını kaydettik. Aşağıdan arka yüzü de ekleyebilir, ürünün ne olduğunu yazabilirsin."
+              : "İçerik/bileşen listesi fotoğrafını kaydettik. Yazılar okunmuyorsa tekrar çek; kavisli bir şişeyse devamını da ekleyebilirsin."}
           </Text>
-          <Image source={{ uri: backUri }} style={styles.previewImage} resizeMode="contain" />
-          <View style={styles.previewBtnRow}>
-            <TouchableOpacity style={styles.previewRetakeBtn} onPress={retakeBackShot}>
-              <Text style={styles.previewRetakeText}>Tekrar Çek</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.previewConfirmBtn} onPress={confirmBackShot}>
-              <Text style={styles.previewConfirmText}>Okunuyor, Analiz Et</Text>
-            </TouchableOpacity>
+
+          <View style={styles.photoRow}>
+            <View style={styles.photoSlot}>
+              <Image source={{ uri: primaryUri }} style={styles.detailsThumb} resizeMode="cover" />
+              <TouchableOpacity onPress={retakePrimary}>
+                <Text style={styles.retakeLink}>Tekrar çek</Text>
+              </TouchableOpacity>
+            </View>
+
+            {secondUri ? (
+              <View style={styles.photoSlot}>
+                <Image source={{ uri: secondUri }} style={styles.detailsThumb} resizeMode="cover" />
+                <TouchableOpacity onPress={retakeSecond}>
+                  <Text style={styles.retakeLink}>Tekrar çek</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity style={styles.addPhotoSlot} onPress={startSecondShot} activeOpacity={0.8}>
+                <PlusIcon size={17} color={accentRamp[600]} />
+                <Text style={styles.addPhotoText}>
+                  {noIngredientsMode ? "Arka yüzünü\nde çek" : "Etiketin\ndevamı var mı?"}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
-        </View>
+
+          <Text style={styles.fieldLabelStrong}>Bu ürün nedir? (marka + ürün adı) *</Text>
+          <TextInput
+            style={[styles.detailsInput, nameError && styles.detailsInputError]}
+            placeholder='Örn: "Vichy Dercos Aminexil Saç Dökülmesine Karşı Şampuan"'
+            placeholderTextColor={colors.textFaint}
+            value={productNameHint}
+            onChangeText={(text) => {
+              setProductNameHint(text);
+              if (nameError && text.trim()) setNameError(false);
+            }}
+          />
+          {nameError ? (
+            <Text style={styles.fieldError}>
+              Ürün adını yazman gerekiyor — AI'nin doğru ürünü/markayı tanıması ve aynı ürünü tekrar
+              taradığında tutarlı sonuç verebilmesi için gerekli.
+            </Text>
+          ) : (
+            <Text style={styles.fieldHint}>
+              AI barkod/görselden markayı tanısa bile tam ürünü/varyantı kaçırabiliyor — yazman sonucu
+              belirgin şekilde iyileştiriyor.
+            </Text>
+          )}
+
+          {showIngredientsHint ? (
+            <TextInput
+              style={[styles.detailsInput, styles.multilineInput]}
+              placeholder="İçerik listesini biliyorsan/okuyabiliyorsan buraya yazabilirsin (opsiyonel)"
+              placeholderTextColor={colors.textFaint}
+              value={ingredientsHint}
+              onChangeText={setIngredientsHint}
+              multiline
+              numberOfLines={3}
+            />
+          ) : (
+            <TouchableOpacity onPress={() => setShowIngredientsHint(true)}>
+              <Text style={styles.nameHintToggle}>İçerik listesini de yazabilirsin (opsiyonel)</Text>
+            </TouchableOpacity>
+          )}
+
+          <Text style={styles.fieldLabelCaps}>Bu ürün ne tür bir ürün? (opsiyonel)</Text>
+          <View style={styles.chipRow}>
+            {PRODUCT_CATEGORIES.map((cat) => (
+              <Chip key={cat} label={cat} selected={productCategoryHint === cat} onPress={() => selectCategory(cat)} />
+            ))}
+          </View>
+
+          {productCategoryHint && productCategoryHint !== "Diğer" && (
+            <>
+              <Text style={styles.fieldLabelCaps}>Ne için kullanmak istiyorsun? (opsiyonel)</Text>
+              <View style={styles.chipRow}>
+                {INTENT_OPTIONS[productCategoryHint].map((opt) => (
+                  <Chip key={opt} label={opt} selected={selectedIntents.includes(opt)} onPress={() => toggleIntent(opt)} />
+                ))}
+              </View>
+            </>
+          )}
+
+          {/* NOT (6 Eylül düzeltmesi): tasarım kaynağında (03_Ürün_detayları.html)
+              bu buton GRADYAN DEĞİL, düz #C67139 (colors.primary) — gradyan
+              yalnızca izin ekranındaki "İzin ver" butonunda kullanılıyor
+              (aşağıdaki permissionBtn, o doğru şekilde gradyan kalıyor).
+              Önceki turda bu ikisi karıştırılıp buraya da gradyan
+              uygulanmıştı. */}
+          <TouchableOpacity onPress={submitDetails} activeOpacity={0.9} style={styles.analyzeBtn}>
+            <Text style={styles.analyzeBtnText}>Analiz et</Text>
+          </TouchableOpacity>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -334,84 +611,93 @@ export default function ScanScreen({ navigation }: Props) {
         // Ana (1x) kamera lensini açıkça seçiyoruz — bkz. MAIN_LENS notu.
         selectedLens={selectedLens}
         zoom={0}
-        barcodeScannerSettings={{ barcodeTypes: PRODUCT_BARCODE_TYPES }}
-        onBarcodeScanned={stage === "idle" && !detectedBarcode ? handleBarcodeScanned : undefined}
       />
-
-      {/* Çerçeveleme kılavuzu: kullanıcının etiketi/barkodu kadraja tam
-          doldurması, AI'nin küçük yazıları okuyabilmesi için en kritik nokta. */}
-      <View style={styles.guideWrap} pointerEvents="none">
-        <View style={styles.guideFrame} />
-      </View>
 
       <SafeAreaView style={styles.overlay} pointerEvents="box-none">
         <View style={styles.topBar}>
+          {/* 9 Eylül düzeltmesi (kullanıcı geri bildirimi): kapatma (X)
+              butonu buradan, ekranın en üst-sol köşesinden kaldırıldı —
+              telefonu tek elle tutarken başparmakla ulaşması zordu. Artık
+              alt bar'da, galeri butonuyla simetrik şekilde SAĞ ALT'ta (bkz.
+              bottomBar) — başparmağın zaten durduğu bölge. Üstte sadece
+              flaş butonu kalıyor. */}
           <View style={styles.topRow}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeBtn}>
-              <Text style={styles.closeBtnText}>✕</Text>
-            </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setTorchOn((t) => !t)}
               style={[styles.closeBtn, torchOn && styles.torchBtnActive]}
             >
-              <Text style={styles.closeBtnText}>{torchOn ? "🔦" : "💡"}</Text>
+              <FlashIcon size={15} color={torchOn ? "#fff" : "#FFD97A"} />
             </TouchableOpacity>
           </View>
-          {detectedBarcode ? (
-            <View style={styles.barcodeBanner}>
-              <Text style={styles.barcodeBannerText}>✓ Barkod algılandı — telefonu sabit tutun, taranıyor...</Text>
-            </View>
-          ) : stage === "capturingBack" ? (
-            <View style={styles.barcodeBanner}>
-              <Text style={styles.barcodeBannerText}>
-                Telefonu YAKLAŞTIR: içerik listesi çerçeveyi TAMAMEN doldursun. Sadece çerçevenin
-                içi analiz edilir — yazılar şu an ekranda okunmuyorsa daha da yaklaş.
+          {stage === "capturingSecond" ? (
+            <View style={styles.infoBanner}>
+              <Text style={styles.infoBannerText}>
+                {noIngredientsMode
+                  ? "Şimdi ürünün ARKA yüzünü çerçeveye tut ve çek."
+                  : "Şişeyi biraz döndür, etiketin DEVAMINI çerçeveye tut ve çek."}
               </Text>
             </View>
           ) : (
-            <Text style={styles.hint}>
-              Önce ürünün BARKODUNU çerçeveye tut — okunursa ürün kesin olarak tanınır. Barkod yoksa
-              ön yüzün fotoğrafını çek, ardından içerik listesini de çekmen istenecek. Yazılar ekranda
-              net okunuyorsa AI de okuyabilir; okunmuyorsa biraz yaklaş, ışık azsa 💡 feneri aç.
-            </Text>
+            <View>
+              {!noIngredientsMode && (
+                <View style={styles.tipBanner}>
+                  <Text style={styles.tipBannerText}>
+                    💡 İçerik listesini bulamadıysan bak: genelde ürünün ARKA veya ALT kısmında, küçük
+                    puntolu yazıyla yazılıdır.
+                  </Text>
+                </View>
+              )}
+              <Text style={styles.hint}>
+                {noIngredientsMode
+                  ? "Ürünün ÖN yüzünü çerçeveye tut ve çek — ardından arka yüzünü de çekmen istenecek."
+                  : "Ürünün İÇERİK/BİLEŞEN LİSTESİNİN olduğu kısmı çerçeveye tut ve çek."}
+              </Text>
+              <TouchableOpacity onPress={() => setNoIngredientsMode((v) => !v)}>
+                <Text style={styles.modeSwitchLink}>
+                  {noIngredientsMode
+                    ? "← İçerik listesi var, öyle devam edeyim"
+                    : "Bu üründe içerik/bileşen listesi yok →"}
+                </Text>
+              </TouchableOpacity>
+            </View>
           )}
         </View>
 
-        {stage === "awaitingBackChoice" && frontUri && (
-          <View style={styles.backChoiceBox} pointerEvents="auto">
-            <View style={styles.backChoiceRow}>
-              <Image source={{ uri: frontUri }} style={styles.backChoiceThumb} />
-              <View style={{ flex: 1, marginLeft: spacing.sm }}>
-                <Text style={styles.backChoiceTitle}>✓ Bu fotoğraf kaydedildi</Text>
-                <Text style={styles.backChoiceText}>
-                  Daha doğru bir analiz için İÇERİK LİSTESİNİN olduğu arka yüzü de çekmeni öneririz —
-                  AI tahmin yürütmek yerine gerçek listeyi okur.
-                </Text>
-              </View>
-            </View>
-            <View style={styles.backChoiceBtnRow}>
-              <TouchableOpacity style={styles.backChoiceSkipBtn} onPress={skipBackShot}>
-                <Text style={styles.backChoiceSkipText}>Bu kadarı yeterli</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.backChoicePrimaryBtn} onPress={startBackShot}>
-                <Text style={styles.backChoicePrimaryText}>Arka Yüzü de Çek</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
+        {/* Çerçeveleme kılavuzu: kullanıcının etiketi/barkodu kadraja tam
+            doldurması, AI'nin küçük yazıları okuyabilmesi için en kritik
+            nokta. NOT (7 Eylül düzeltmesi): eskiden bu, topBar/bottomBar'dan
+            BAĞIMSIZ, tüm ekranı kaplayan ayrı bir katmanda dikey ORTALANIYORDU
+            — yani topBar'daki metin (özellikle iki banner + mode-switch
+            linki üst üste bindiğinde) ekranın 3-4 satırını kaplayınca,
+            SABİT bir yükseklikte ortalanan bu çerçeve topBar'ın son satırının
+            üzerine biniyordu. Android'de daha dar ekranlarda metin daha çok
+            satıra bölündüğü için bu çakışma orada belirginleşti. Artık
+            topBar/bottomBar ile AYNI flex sütununda, aralarında KALAN
+            boşlukta ortalanıyor — topBar ne kadar uzasa da (kaç satıra
+            bölünürse bölünsün) çerçeveyle asla çakışmıyor. */}
+        <View style={styles.guideWrap} pointerEvents="none">
+          {/* ref + onLayout: çerçevenin GERÇEK ekran konumunu ölçüp
+              guideRect'e kaydediyoruz — cropToGuideFrame() artık bu ölçümü
+              kullanıyor (bkz. yukarıdaki fonksiyon başındaki 7 Eylül notu). */}
+          <View ref={guideFrameRef} style={styles.guideFrame} onLayout={measureGuideFrame} />
+        </View>
 
         <View style={styles.bottomBar}>
           <TouchableOpacity onPress={pickFromGallery} style={styles.galleryBtn}>
             <Text style={styles.galleryBtnText}>Galeri</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => takePhoto(stage === "capturingBack" ? { isBackShot: true } : undefined)}
+            onPress={() => takePhoto(stage === "capturingSecond" ? { isSecondShot: true } : undefined)}
             style={styles.shutterBtn}
-            disabled={isCapturing || stage === "awaitingBackChoice"}
+            disabled={isCapturing}
           >
             <View style={styles.shutterInner} />
           </TouchableOpacity>
-          <View style={{ width: 64 }} />
+          <View style={styles.closeBtnBottomWrap}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeBtn}>
+              <CloseIcon size={16} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
       </SafeAreaView>
     </View>
@@ -421,101 +707,142 @@ export default function ScanScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   overlay: { flex: 1, justifyContent: "space-between" },
-  guideWrap: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
+  // Artık tüm ekranı kaplayan ayrı bir katman değil — topBar ve bottomBar
+  // arasında KALAN alanı dolduran normal bir flex çocuğu (bkz. yukarıdaki
+  // JSX'teki 7 Eylül notu).
+  guideWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
   guideFrame: {
     width: `${GUIDE_W * 100}%`,
     height: `${GUIDE_H * 100}%`,
     borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.75)",
+    // Tasarım kaynağı ("02"/"04" ekranları): border:2px solid rgba(255,255,255,.6)
+    // — önceki değer (.75) tasarımdakinden daha belirgin/opak duruyordu.
+    borderColor: "rgba(255,255,255,0.6)",
     borderRadius: radius.md,
   },
   topBar: { padding: spacing.lg },
+  // Artık sadece flaş butonu var (bkz. 9 Eylül notu) — sağa hizalı kalması
+  // için "space-between" yerine "flex-end".
   topRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
     marginBottom: spacing.md,
   },
   closeBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: OVERLAY_BTN_BG,
     alignItems: "center",
     justifyContent: "center",
   },
+  // Kapatma (X) butonunun alt bar'daki sarmalayıcısı — galleryBtn ile aynı
+  // genişlikte (64) ki shutter tam ortada kalsın, içindeki gerçek dokunma
+  // alanı ise closeBtn boyutunda (34x34) ama bottomBar'ın padding'i sayesinde
+  // ekranın köşesine YAPIŞIK değil, başparmağın doğal durduğu bölgede.
+  closeBtnBottomWrap: { width: 64, alignItems: "flex-end" },
   torchBtnActive: { backgroundColor: colors.primary },
-  closeBtnText: { color: "#fff", fontSize: 16 },
   hint: {
-    color: "#fff",
-    backgroundColor: "rgba(0,0,0,0.55)",
-    padding: spacing.sm,
-    borderRadius: radius.sm,
-    fontSize: 13,
-  },
-  barcodeBanner: {
-    backgroundColor: colors.primary,
-    padding: spacing.sm,
-    borderRadius: radius.sm,
-  },
-  barcodeBannerText: { color: "#0F1115", fontSize: 13, fontWeight: "700" },
-  backChoiceBox: {
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-    backgroundColor: "rgba(15,17,21,0.95)",
-    borderRadius: radius.lg,
+    color: OVERLAY_TEXT,
+    backgroundColor: OVERLAY_BANNER_BG,
     padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: 16,
+    fontSize: 13,
+    lineHeight: 18,
   },
-  backChoiceRow: { flexDirection: "row", alignItems: "flex-start" },
-  backChoiceThumb: { width: 56, height: 56, borderRadius: radius.sm },
-  backChoiceTitle: { color: colors.text, fontSize: 13, fontWeight: "700" },
-  backChoiceText: { color: colors.textMuted, fontSize: 12, marginTop: 4, lineHeight: 16 },
-  backChoiceBtnRow: { flexDirection: "row", marginTop: spacing.sm, gap: spacing.sm },
-  backChoiceSkipBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center",
+  modeSwitchLink: {
+    color: OVERLAY_MINT,
+    fontSize: 12.5,
+    fontFamily: fontFamily.semibold,
+    marginTop: spacing.sm,
+    alignSelf: "flex-start",
   },
-  backChoiceSkipText: { color: colors.textMuted, fontSize: 13, fontWeight: "600" },
-  backChoicePrimaryBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: radius.pill,
+  infoBanner: {
     backgroundColor: colors.primary,
-    alignItems: "center",
+    padding: spacing.md,
+    borderRadius: 16,
+    ...shadows.lifted(colors.primaryDark),
   },
-  backChoicePrimaryText: { color: "#0F1115", fontSize: 13, fontWeight: "700" },
-  previewContainer: { flex: 1, padding: spacing.lg },
-  previewTitle: { color: colors.text, fontSize: 18, fontWeight: "800", marginBottom: spacing.xs },
-  previewSubtitle: { color: colors.textMuted, fontSize: 13, lineHeight: 18, marginBottom: spacing.md },
-  previewImage: {
-    flex: 1,
-    width: "100%",
-    borderRadius: radius.md,
+  infoBannerText: { color: "#fff", fontSize: 13, fontFamily: fontFamily.semibold, lineHeight: 18 },
+  tipBanner: {
+    backgroundColor: OVERLAY_AMBER_BG,
+    borderWidth: 1,
+    borderColor: OVERLAY_AMBER_BORDER,
+    borderRadius: 14,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  tipBannerText: { color: OVERLAY_AMBER_TEXT, fontSize: 12.5, fontFamily: fontFamily.semibold, lineHeight: 18 },
+  detailsContainer: { padding: spacing.lg, paddingBottom: spacing.xl * 2 },
+  previewTitle: { fontFamily: fontFamily.semibold, color: colors.text, fontSize: 22, letterSpacing: -0.6, marginBottom: spacing.xs },
+  previewSubtitle: { color: colors.textMuted, fontSize: 13, lineHeight: 19, marginBottom: spacing.md },
+  photoRow: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.lg },
+  photoSlot: { alignItems: "center" },
+  detailsThumb: { width: 120, height: 120, borderRadius: 18, backgroundColor: colors.card },
+  retakeLink: { color: accentRamp[600], fontSize: 12, fontFamily: fontFamily.semibold, marginTop: 7 },
+  addPhotoSlot: {
+    width: 120,
+    height: 120,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: "rgba(32,30,29,0.22)",
+    borderStyle: "dashed",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    padding: spacing.xs,
+  },
+  addPhotoText: { color: accentRamp[600], fontSize: 11, fontFamily: fontFamily.semibold, textAlign: "center", lineHeight: 15 },
+  fieldLabelStrong: { color: colors.text, fontSize: 13.5, fontFamily: fontFamily.semibold, marginTop: spacing.md, marginBottom: 8 },
+  fieldLabelCaps: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontFamily: fontFamily.semibold,
+    letterSpacing: 1.3,
+    textTransform: "uppercase",
+    marginTop: spacing.md,
+    marginBottom: 9,
+  },
+  fieldHint: { color: colors.textMuted, fontSize: 11.5, marginTop: 4, lineHeight: 15 },
+  fieldError: { color: colors.danger, fontSize: 11.5, marginTop: 4, lineHeight: 15, fontFamily: fontFamily.semibold },
+  detailsInputError: { borderWidth: 1, borderColor: colors.danger },
+  detailsInput: {
+    color: colors.text,
+    fontSize: 14,
+    backgroundColor: "#F3EBDD",
+    borderRadius: 14,
+    paddingHorizontal: spacing.md,
+    height: 48,
+  },
+  multilineInput: { minHeight: 64, height: undefined, paddingVertical: 12, textAlignVertical: "top" },
+  nameHintToggle: { color: accentRamp[600], fontSize: 12, fontFamily: fontFamily.semibold, marginTop: spacing.sm },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
+  // Tasarımdaki ".pill" — seçili: dolu turuncu zemin/beyaz yazı; seçili
+  // değil: beyaz zemin + ince "hairline" halka (gölge yerine border) + soluk
+  // olmayan (textMuted) yazı.
+  chip: {
+    height: 29,
+    borderRadius: 999,
+    paddingHorizontal: 13,
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: colors.card,
-  },
-  previewBtnRow: { flexDirection: "row", marginTop: spacing.md, gap: spacing.sm },
-  previewRetakeBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center",
+    borderColor: "rgba(32,30,29,0.08)",
   },
-  previewRetakeText: { color: colors.text, fontSize: 14, fontWeight: "700" },
-  previewConfirmBtn: {
-    flex: 1.4,
-    paddingVertical: 14,
+  chipSelected: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipText: { color: colors.textMuted, fontSize: 11.5, fontFamily: fontFamily.semibold, letterSpacing: -0.1 },
+  chipTextSelected: { color: "#fff" },
+  analyzeBtn: {
     borderRadius: radius.pill,
-    backgroundColor: colors.primary,
+    height: 52,
     alignItems: "center",
+    justifyContent: "center",
+    marginTop: spacing.xl,
+    backgroundColor: colors.primary,
+    ...shadows.glow(colors.primaryDark),
   },
-  previewConfirmText: { color: "#0F1115", fontSize: 14, fontWeight: "700" },
+  analyzeBtnText: { color: "#fff", fontSize: 14.5, fontFamily: fontFamily.semibold, letterSpacing: -0.2 },
   bottomBar: {
     flexDirection: "row",
     alignItems: "center",
@@ -524,21 +851,64 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
   },
   galleryBtn: { width: 64, alignItems: "flex-start" },
-  galleryBtnText: { color: "#fff", fontSize: 14, fontWeight: "600" },
+  // Tasarım kaynağı: font-size:12px (66'dan/13'ten değil, birebir eşleşsin diye düzeltildi).
+  galleryBtnText: { color: "#fff", fontSize: 12, fontFamily: fontFamily.semibold },
+  // Tasarım kaynağı ("02"/"04" ekranları): 58x58 dış halka (border 3px) + 48x48
+  // iç dolu daire — önceki değerler (66/54) tasarımdakinden biraz büyüktü.
   shutterBtn: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    borderWidth: 4,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    borderWidth: 3,
     borderColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
   },
-  shutterInner: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#fff" },
+  shutterInner: { width: 48, height: 48, borderRadius: 24, backgroundColor: "#fff" },
+  // Tasarım kaynağı: "C Kamera izni" ekranı — ikon rozeti + başlık + açıklama
+  // + gradyanlı ana buton + krem ikincil buton, birebir aktarıldı.
   permissionBox: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl },
-  permissionText: { color: colors.text, textAlign: "center", fontSize: 15, marginBottom: spacing.lg },
-  permissionBtn: { backgroundColor: colors.primary, paddingVertical: 12, paddingHorizontal: 24, borderRadius: radius.pill },
-  permissionBtnText: { color: "#0F1115", fontWeight: "700" },
-  galleryLinkBtn: { marginTop: spacing.lg },
-  galleryLinkText: { color: colors.accent, fontSize: 14 },
+  permissionIconBadge: {
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    backgroundColor: "#FBEEDD",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.xl,
+  },
+  permissionTitle: {
+    fontFamily: fontFamily.semibold,
+    fontSize: 19,
+    letterSpacing: -0.5,
+    color: colors.text,
+    marginBottom: spacing.xs,
+    textAlign: "center",
+  },
+  permissionText: {
+    color: colors.textMuted,
+    textAlign: "center",
+    fontSize: 13,
+    lineHeight: 19,
+    maxWidth: 260,
+  },
+  permissionActions: { width: "100%", marginTop: spacing.xl, gap: 9 },
+  permissionBtn: {
+    height: 50,
+    borderRadius: radius.pill,
+    alignItems: "center",
+    justifyContent: "center",
+    ...shadows.glow(colors.primaryDark),
+  },
+  permissionBtnText: { color: "#fff", fontFamily: fontFamily.semibold, fontSize: 14.5, letterSpacing: -0.2 },
+  galleryLinkBtn: {
+    height: 46,
+    borderRadius: radius.pill,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.cardAlt,
+    borderWidth: 1.5,
+    borderColor: "rgba(198,113,57,0.35)",
+  },
+  galleryLinkText: { color: colors.primaryDark, fontSize: 13, fontFamily: fontFamily.semibold },
 });

@@ -10,6 +10,7 @@ const { analyzeProductImage, analyzeKnownProduct } = require("./analyze");
 const { getMockAnalysis } = require("./mockAnalysis");
 const { lookupBarcode } = require("./openBeautyFacts");
 const { getCachedProduct, saveCachedProduct, normalizeProductKey } = require("./productCache");
+const { sendReportEmail } = require("./reportProblem");
 
 const app = express();
 // Render (ve çoğu barındırma servisi), istekleri kendi ters proxy'sinden
@@ -41,6 +42,8 @@ const uploadFields = upload.fields([
   { name: "image", maxCount: 1 },
   { name: "imageBack", maxCount: 1 },
 ]);
+// 9 Eylül eklemesi: "Sorun bildir" ekranındaki opsiyonel etiket fotoğrafı için.
+const uploadPhoto = upload.fields([{ name: "photo", maxCount: 1 }]);
 
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
@@ -70,6 +73,12 @@ app.get("/health", (_req, res) => {
 if (!process.env.APP_SHARED_SECRET) {
   console.warn(
     "[index] UYARI: APP_SHARED_SECRET tanımlı değil — /analyze endpoint'i şu an KORUMASIZ, herkes doğrudan çağırabilir. Render > Environment'a APP_SHARED_SECRET ekle ve client'taki EXPO_PUBLIC_APP_SECRET ile aynı değeri kullan."
+  );
+}
+// 9 Eylül eklemesi: "Sorun bildir" ekranının otomatik e-posta göndermesi için.
+if (!process.env.RESEND_API_KEY || !process.env.REPORT_EMAIL_TO) {
+  console.warn(
+    "[index] UYARI: RESEND_API_KEY ve/veya REPORT_EMAIL_TO tanımlı değil — /report-problem endpoint'i çalışmayacak (bildirimler e-posta olarak GÖNDERİLMEYECEK). Render > Environment'a ikisini de ekle (bkz. server/.env.example)."
   );
 }
 
@@ -270,6 +279,55 @@ app.post("/analyze", checkAppSecret, analyzeLimiter, uploadFields, async (req, r
   } catch (err) {
     console.error("[/analyze] Beklenmeyen hata:", err);
     res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
+// 9 Eylül eklemesi: "Sorun bildir" ekranı artık burayı çağırıyor (bkz.
+// src/services/reportProblem.ts), eskisi gibi kullanıcının kendi mail
+// uygulamasını açmak yerine. /analyze ile aynı X-App-Secret koruması
+// geçerli; ayrıca kötüye kullanımı (biri script ile binlerce "sorun
+// bildirimi" göndersin diye) önlemek için AYRI ve DAHA SIKI bir hız sınırı
+// var (dakikada 5 — normal bir kullanıcı bunu asla aşmaz).
+const reportLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Çok fazla bildirim gönderildi, lütfen biraz sonra tekrar dene." },
+});
+
+app.post("/report-problem", checkAppSecret, reportLimiter, uploadPhoto, async (req, res) => {
+  try {
+    const body = req.body || {};
+    const issueTitle = String(body.issueTitle || "").trim();
+    if (!issueTitle) {
+      return res.status(400).json({ error: "issueTitle gerekli" });
+    }
+    const issueDesc = String(body.issueDesc || "").trim();
+    const description = String(body.description || "").trim();
+    const productHint = String(body.productHint || "").trim();
+    const productName = String(body.productName || "").trim();
+    const productBrand = String(body.productBrand || "").trim();
+    const analysisDateText = String(body.analysisDateText || "").trim();
+    const photo = req.files?.photo?.[0];
+
+    const subject = `[özünde] Sorun bildirimi: ${issueTitle}`;
+    const bodyLines = [
+      `Sorun türü: ${issueTitle}${issueDesc ? ` (${issueDesc})` : ""}`,
+      productName ? `Ürün: ${productName}${productBrand ? " · " + productBrand : ""}` : null,
+      analysisDateText ? `Analiz tarihi: ${analysisDateText}` : null,
+      !productName && productHint ? `Ürün / analiz notu: ${productHint}` : null,
+      "",
+      "Açıklama:",
+      description || "(boş bırakıldı)",
+    ].filter((l) => l !== null);
+
+    await sendReportEmail({ subject, bodyLines, photoBuffer: photo?.buffer });
+    console.log(`[/report-problem] Bildirim e-postayla gönderildi: "${issueTitle}"`);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("[/report-problem] Bildirim e-postası gönderilemedi:", err.message);
+    res.status(500).json({ error: err?.message || "Bildirim gönderilemedi" });
   }
 });
 

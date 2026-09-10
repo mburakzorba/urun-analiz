@@ -54,6 +54,10 @@ export interface SubscriptionState {
   scansUsedThisMonth: number;
   freeScansLimit: number;
   currentPeriodStart: string; // ISO tarih, ayın başı
+  // 9 Eylül eklemesi: hangi plana abone olundu (aylık/yıllık) — sadece
+  // isPremium true ise anlamlı. Premium olmayan/eski kayıtlarda yok
+  // olabilir; ekranlar bu durumda "monthly" varsayıyor (bkz. plans.ts).
+  planInterval?: "monthly" | "yearly";
 }
 
 // --- Kullanıcı Profili (kişiselleştirme) ---
@@ -66,24 +70,14 @@ export type SkinType = "Yağlı" | "Kuru" | "Karma" | "Hassas" | "Normal";
 
 export const SKIN_TYPES: SkinType[] = ["Yağlı", "Kuru", "Karma", "Hassas", "Normal"];
 
-export type UserGoal =
-  | "Nemlendirme"
-  | "Doğallık / Az Kimyasal İçerik"
-  | "Anti-aging / Kırışıklık Karşıtı"
-  | "Akne / Sivilce Kontrolü"
-  | "Leke / Cilt Tonu Eşitleme"
-  | "Saç Dökülmesi Karşıtı"
-  | "Hassas Cilt Uyumluluğu";
+// "Ne İstiyorsun?" (hedefler) alanı kaldırıldı — artık bu bilgi her taramada
+// (ScanScreen'deki "Bu ürünü ne için kullanmak istiyorsun?" seçenekleri ile)
+// o taramaya özel olarak soruluyor, profilde genel/statik tutmaya gerek yok.
+// Yerine, taramaların büyük kısmının saç bakım ürünleri olması nedeniyle,
+// cilt tipine paralel bir "Saç Tipin" sorusu eklendi.
+export type HairType = "Yağlı" | "Kuru" | "Normal" | "Karma" | "Kepekli / Hassas Saç Derisi";
 
-export const USER_GOALS: UserGoal[] = [
-  "Nemlendirme",
-  "Doğallık / Az Kimyasal İçerik",
-  "Anti-aging / Kırışıklık Karşıtı",
-  "Akne / Sivilce Kontrolü",
-  "Leke / Cilt Tonu Eşitleme",
-  "Saç Dökülmesi Karşıtı",
-  "Hassas Cilt Uyumluluğu",
-];
+export const HAIR_TYPES: HairType[] = ["Yağlı", "Kuru", "Normal", "Karma", "Kepekli / Hassas Saç Derisi"];
 
 // Kozmetik ürünlerde en sık alerji/duyarlılığa yol açan bileşen grupları.
 export const COMMON_ALLERGENS: string[] = [
@@ -97,15 +91,28 @@ export const COMMON_ALLERGENS: string[] = [
   "Esansiyel Yağlar (ör. Çay Ağacı, Nane)",
 ];
 
+// 9 Eylül eklemesi (kullanıcı isteği — "profilim kısmı eksik yaş isim
+// soyisim cinsiyet sorusuda olsun"): bu 4 alan da diğerleri gibi TAMAMEN
+// opsiyonel. Şu an için hiçbir analiz/personalizedNote mantığı bu alanları
+// KULLANMIYOR — sadece kullanıcının kendi profilini tanımlaması için.
+// (İleride yaş/cinsiyete göre de kişiselleştirme eklenmek istenirse,
+// server/src/prompt.js'e bu alanlar da eklenebilir.)
+export type Gender = "Kadın" | "Erkek" | "Belirtmek istemiyorum";
+
+export const GENDERS: Gender[] = ["Kadın", "Erkek", "Belirtmek istemiyorum"];
+
 export interface UserProfile {
+  firstName?: string;
+  lastName?: string;
+  age?: number;
+  gender?: Gender;
   skinType?: SkinType;
-  goals: UserGoal[];
+  hairType?: HairType;
   allergies: string[]; // COMMON_ALLERGENS içinden seçilenler
   otherAllergyNote?: string; // serbest metin — listede olmayan alerjiler
   completedAt?: string; // profil ilk kez dolduğunda ISO tarih
 }
 
 export const EMPTY_USER_PROFILE: UserProfile = {
-  goals: [],
   allergies: [],
 };

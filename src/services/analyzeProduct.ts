@@ -20,7 +20,11 @@ export async function analyzeProductPhoto(
   imageUri: string,
   barcode?: string,
   backImageUri?: string,
-  profile?: UserProfile
+  profile?: UserProfile,
+  userProvidedName?: string,
+  userProvidedIngredients?: string,
+  userIntent?: string,
+  bothImagesAreIngredients?: boolean
 ): Promise<ProductAnalysis> {
   if (!API_URL) {
     console.warn(
@@ -65,6 +69,33 @@ export async function analyzeProductPhoto(
   // boşsa (hiç doldurulmamışsa) hiç göndermiyoruz, backend genel analiz yapar.
   if (profile && profile.completedAt) {
     formData.append("profile", JSON.stringify(profile));
+  }
+  // Kullanıcı barkod yokken/okunamadığında ürünün tam adını kendisi yazdıysa
+  // (AI'nin markayı tanıyıp varyantı/tam adı yanlış tahmin ettiği durumlar
+  // için — bkz. ScanScreen'deki opsiyonel "ürün adını biliyorsan yaz" alanı),
+  // bunu da gönderiyoruz. Backend bu ismi KESİN kabul edip sadece içerik
+  // listesini fotoğraftan okumaya devam ediyor.
+  if (userProvidedName && userProvidedName.trim()) {
+    formData.append("userProvidedName", userProvidedName.trim());
+  }
+  // Kullanıcı etiketteki içerik listesini de yazdıysa (fotoğraftan net
+  // okunamadığı durumlar için — kavisli şişe vb.), bunu da gönderiyoruz.
+  // Backend bunu DOĞRULANMIŞ veri olarak kullanır, fotoğraftan içerik
+  // okumaya çalışmaz.
+  if (userProvidedIngredients && userProvidedIngredients.trim()) {
+    formData.append("userProvidedIngredients", userProvidedIngredients.trim());
+  }
+  // Kullanıcı "bu ürünü ne için kullanmak istiyorsun?" sorusuna bu tarama
+  // için özel bir yanıt yazdıysa (kayıtlı profildeki genel hedeflerden
+  // bağımsız, o anki niyet) gönderiyoruz.
+  if (userIntent && userIntent.trim()) {
+    formData.append("userIntent", userIntent.trim());
+  }
+  // İki görsel de (imageBack dahil) İÇERİK LİSTESİ fotoğrafıysa (ön/arka
+  // değil, aynı etiketin devamıysa — kavisli şişe senaryosu), backend'e
+  // haber veriyoruz ki doğru talimat setini kullansın.
+  if (bothImagesAreIngredients) {
+    formData.append("bothImagesAreIngredients", "true");
   }
 
   // ÖNEMLİ: Content-Type header'ını BURADA elle set ETMİYORUZ. FormData

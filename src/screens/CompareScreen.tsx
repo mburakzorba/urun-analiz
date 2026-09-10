@@ -3,15 +3,15 @@ import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity } from "rea
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
-import { colors, spacing, radius } from "../theme";
+import { colors, spacing, radius, type, fontFamily, shadows, good, danger, accent as accentRamp } from "../theme";
 import { ProductAnalysis } from "../types";
 import { useUserProfile } from "../context/UserProfileContext";
+// 7 Eylül düzeltmesi: bu ekranın "puan" hesabı artık burada tek başına
+// tanımlı değil — Ana Sayfa/Geçmiş/Sonuç ile aynı sayıyı göstersin diye
+// utils/verdict.ts'teki ortak overallScore()'a taşındı (bkz. oradaki not).
+import { overallScore } from "../utils/verdict";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Compare">;
-
-function overallScore(p: ProductAnalysis): number {
-  return Math.round((p.healthScore + p.effectivenessScore) / 2);
-}
 
 function riskyCount(p: ProductAnalysis): number {
   return p.ingredients.filter((i) => i.risk === "riskli").length;
@@ -49,12 +49,23 @@ function allergyMatches(p: ProductAnalysis, allergyTerms: string[]): string[] {
 function ProductColumn({ p, isWinner }: { p: ProductAnalysis; isWinner: boolean }) {
   return (
     <View style={[styles.column, isWinner && styles.columnWinner]}>
-      {isWinner && <Text style={styles.winnerTag}>🏆 Daha Uygun</Text>}
+      {isWinner ? (
+        <View style={styles.winnerTag}>
+          <Text style={styles.winnerTagText}>Daha uygun</Text>
+        </View>
+      ) : (
+        // Tasarım kaynağı: kazanan olmayan sütunda da pill'in yüksekliği kadar
+        // boş alan bırakılıyor — ikisinin resim/isim satırı aynı yükseklikte
+        // hizalı kalsın diye.
+        <View style={styles.winnerTagPlaceholder} />
+      )}
       <Image source={{ uri: p.imageUri }} style={styles.productImage} />
-      <Text style={styles.productName} numberOfLines={2}>
+      <Text style={[styles.productName, isWinner && styles.productNameWinner]} numberOfLines={2}>
         {p.productName}
       </Text>
-      {!!p.category && <Text style={styles.productCategory}>{p.category}</Text>}
+      {!!p.category && (
+        <Text style={[styles.productCategory, isWinner && styles.productCategoryWinner]}>{p.category}</Text>
+      )}
     </View>
   );
 }
@@ -65,19 +76,25 @@ function CompareRow({
   valueB,
   aWins,
   bWins,
+  isLast,
 }: {
   label: string;
   valueA: string;
   valueB: string;
   aWins?: boolean;
   bWins?: boolean;
+  isLast?: boolean;
 }) {
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, !isLast && styles.rowDivider]}>
       <Text style={styles.rowLabel}>{label}</Text>
       <View style={styles.rowValues}>
-        <Text style={[styles.rowValue, aWins && styles.rowValueWinner]}>{valueA}</Text>
-        <Text style={[styles.rowValue, bWins && styles.rowValueWinner]}>{valueB}</Text>
+        <Text style={[styles.rowValue, aWins && styles.rowValueWinner, bWins && styles.rowValueLoser]}>
+          {valueA}
+        </Text>
+        <Text style={[styles.rowValue, bWins && styles.rowValueWinner, aWins && styles.rowValueLoser]}>
+          {valueB}
+        </Text>
       </View>
     </View>
   );
@@ -162,7 +179,12 @@ export default function CompareScreen({ route, navigation }: Props) {
             aWins={riskyA < riskyB}
             bWins={riskyB < riskyA}
           />
-          <CompareRow label="Ne Sıklıkla" valueA={a.usageFrequency || "—"} valueB={b.usageFrequency || "—"} />
+          <CompareRow
+            label="Ne Sıklıkla"
+            valueA={a.usageFrequency || "—"}
+            valueB={b.usageFrequency || "—"}
+            isLast
+          />
         </View>
 
         {(allergyA.length > 0 || allergyB.length > 0) && (
@@ -192,50 +214,83 @@ export default function CompareScreen({ route, navigation }: Props) {
   );
 }
 
+// Tasarım kaynağı: "09 Geçmiş — karşılaştırma sonucu" ekranı — birebir aktarıldı
+// (8 Eylül 2026, kullanıcının Claude Design export'undan). Kazanan sütun
+// good.bg/good.border (#EAF5D8/#5F7A35), kaybeden/berabere sütun colors.cardAlt
+// + ince hairline kenarlık; karşılaştırma kartındaki her satır kazananı
+// good.text ile, kaybedeni soluk gri ile işaretliyor.
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   container: { padding: spacing.lg, paddingBottom: spacing.xl * 2 },
-  backBtn: { marginBottom: spacing.md },
-  backBtnText: { color: colors.accent, fontSize: 15, fontWeight: "600" },
-  title: { fontSize: 22, fontWeight: "800", color: colors.text, marginBottom: spacing.md },
+  backBtn: { flexDirection: "row", alignItems: "center", marginBottom: spacing.md },
+  backBtnText: { color: accentRamp[600], fontSize: 13.5, fontFamily: fontFamily.semibold, letterSpacing: -0.2 },
+  title: { fontFamily: fontFamily.semibold, fontSize: 22, letterSpacing: -0.6, color: colors.text, marginBottom: spacing.md },
   columnsRow: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.sm },
   column: {
     flex: 1,
-    backgroundColor: colors.card,
+    backgroundColor: colors.cardAlt,
     borderRadius: radius.lg,
-    padding: spacing.sm,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.hairline,
+    padding: spacing.md,
     alignItems: "center",
   },
-  columnWinner: { borderColor: colors.primary, backgroundColor: "rgba(74, 222, 128, 0.08)" },
-  winnerTag: { color: colors.primary, fontSize: 11, fontWeight: "800", marginBottom: 4 },
-  productImage: { width: 64, height: 64, borderRadius: radius.md, backgroundColor: colors.cardAlt },
-  productName: { color: colors.text, fontSize: 13, fontWeight: "700", textAlign: "center", marginTop: spacing.xs },
-  productCategory: { color: colors.textMuted, fontSize: 11, textAlign: "center", marginTop: 2 },
-  tieText: { color: colors.textMuted, fontSize: 12, textAlign: "center", marginBottom: spacing.sm },
+  columnWinner: { borderWidth: 2, borderColor: good.border, backgroundColor: good.bg },
+  // Kazanan rozeti: tasarımda beyaz zeminli küçük bir pill (dolgu rengi değil).
+  winnerTag: {
+    height: 20,
+    paddingHorizontal: 10,
+    borderRadius: radius.pill,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 9,
+  },
+  winnerTagText: { color: good.text, fontSize: 9.5, fontFamily: fontFamily.semibold },
+  winnerTagPlaceholder: { height: 20, marginBottom: 9 },
+  productImage: { width: 56, height: 56, borderRadius: radius.md, backgroundColor: "#fff" },
+  productName: {
+    color: colors.text,
+    fontSize: 12.5,
+    fontFamily: fontFamily.semibold,
+    letterSpacing: -0.2,
+    textAlign: "center",
+    marginTop: spacing.sm,
+  },
+  productNameWinner: { color: good.text },
+  productCategory: { color: colors.textFaint, fontSize: 11, textAlign: "center", marginTop: 2 },
+  productCategoryWinner: { color: "rgba(59,77,32,0.6)" },
+  tieText: { color: colors.textMuted, ...type.footnote, textAlign: "center", marginBottom: spacing.sm },
   compareCard: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.cardAlt,
     borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.hairline,
     padding: spacing.md,
     marginTop: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
-  row: { marginBottom: spacing.sm },
-  rowLabel: { color: colors.textMuted, fontSize: 12, marginBottom: 4 },
-  rowValues: { flexDirection: "row" },
-  rowValue: { flex: 1, textAlign: "center", color: colors.text, fontSize: 14, fontWeight: "600" },
-  rowValueWinner: { color: colors.primary, fontWeight: "800" },
+  row: { paddingVertical: 9 },
+  rowDivider: { borderBottomWidth: 1, borderBottomColor: colors.hairline },
+  // Tasarım kaynağı ".k": fontSize 10, letterSpacing .13em, uppercase, 600.
+  rowLabel: { color: colors.textFaint, fontSize: 10, letterSpacing: 1.3, textTransform: "uppercase", fontFamily: fontFamily.semibold, marginBottom: 5 },
+  rowValues: { flexDirection: "row", gap: spacing.sm },
+  rowValue: {
+    flex: 1,
+    textAlign: "center",
+    color: colors.text,
+    fontSize: 17,
+    fontFamily: fontFamily.semibold,
+    letterSpacing: -0.6,
+  },
+  rowValueWinner: { color: good.text },
+  rowValueLoser: { color: colors.textFaint },
   allergyCard: {
-    backgroundColor: "rgba(248, 113, 113, 0.1)",
+    backgroundColor: danger.bg,
     borderRadius: radius.lg,
     padding: spacing.md,
     marginTop: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.danger,
   },
-  allergyTitle: { color: colors.danger, fontWeight: "700", fontSize: 13, marginBottom: 4 },
+  allergyTitle: { color: danger.text, fontFamily: fontFamily.semibold, fontSize: 13, marginBottom: 4 },
   allergyText: { color: colors.text, fontSize: 12, marginTop: 2, lineHeight: 17 },
-  disclaimer: { color: colors.textMuted, fontSize: 11, marginTop: spacing.lg, lineHeight: 16, textAlign: "center" },
+  disclaimer: { color: colors.textFaint, fontSize: 10, marginTop: spacing.lg, lineHeight: 15, textAlign: "center" },
 });

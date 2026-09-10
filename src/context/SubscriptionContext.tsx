@@ -5,14 +5,26 @@ import { SubscriptionState } from "../types";
 const STORAGE_KEY = "urun-analiz:subscription";
 const FREE_SCANS_LIMIT = 3; // Aylık ücretsiz tarama hakkı
 
-// "Âdil kullanım" (fair-use) sınırı — Premium kullanıcılar için PAZARLAMADA
-// hiçbir yerde göstermiyoruz ("Sınırsız" diye satıyoruz), sadece anormal/
-// aşırı kullanımı (bot, kötüye kullanım, ya da gerçekten ayda yüzlerce
-// tarama yapan bir uç durum) yakalamak için arka planda duran bir güvenlik
-// ağı. Sayı bilinçli olarak yüksek tutuldu (gerçek/normal kullanıcıların
-// %99+'u bunun onda birine bile ulaşmaz) — amaç normal kullanıcıyı asla
-// rahatsız etmemek, sadece marjı aşırı uçlardan korumak.
-const PREMIUM_FAIR_USE_LIMIT = 80;
+// --- FİYAT/LİMİT MANTIĞI — GERÇEK MALİYETE GÖRE AYARLANDI (19 Ağustos 2026) ---
+// Render loglarındaki gerçek [analyze][maliyet] verisine göre bir tarama
+// ortalama ~$0.08 (Claude Sonnet 5, girdi+çıktı+cache dahil). ₺49,99/ay eski
+// fiyatla (~$1,04) bir Premium kullanıcı ayda ~13 taramadan fazla yaparsa
+// zaten zarar ediyorduk — eski PREMIUM_FAIR_USE_LIMIT (80) bu riski
+// büyütüyordu (80 tarama ≈ $6,4 ≈ ₺310 maliyet, ₺49,99 gelire karşı).
+// NOT: Bu hâlâ GERÇEK bir ödeme sistemi değil (activatePremium() yerel bir
+// bayrak) — burada yapılan, ileride gerçek ödeme bağlandığında zarar
+// etmeyecek şekilde sayıları önceden makul bir noktaya çekmek. Maliyet
+// düşerse (ör. prompt kısalır, model ucuzlar) ya da fiyat stratejisi
+// değişirse bu sabitler kolayca güncellenebilir.
+// GEÇİCİ OLARAK YÜKSELTİLDİ (20 Ağustos 2026): sen şu an Haiku/prompt
+// düzeltmelerini yoğun şekilde test ediyorsun ve gerçek ödeme sistemi henüz
+// yok (activatePremium() yerel bir bayrak) — 30'luk gerçek-kullanıcı sınırı
+// kendi testlerini bloklamaya başladı ("Yoğun kullanım tespit edildi").
+// Test bittiğinde, hangi modelde (Sonnet/Haiku) kalacağımıza ve gerçek
+// fiyat/limit stratejisine karar verince bunu tekrar gerçekçi bir sayıya
+// (Haiku'nun gerçek ~₺0,90/tarama maliyetiyle, muhtemelen ~40-60 civarı)
+// çekmemiz gerekiyor — kalıcı bir üretim değeri DEĞİL bu.
+const PREMIUM_FAIR_USE_LIMIT = 300;
 
 function startOfCurrentMonthISO(): string {
   const now = new Date();
@@ -35,7 +47,9 @@ interface SubscriptionContextValue {
   // bu durumda Paywall'a değil, farklı (ve daha nazik) bir mesaja yönlendirir.
   premiumFairUseExceeded: boolean;
   registerScan: () => Promise<void>;
-  activatePremium: () => Promise<void>;
+  // 9 Eylül eklemesi: yıllık plan seçeneği için parametreli — varsayılan
+  // "monthly" (eski davranışla aynı, geriye dönük uyumlu).
+  activatePremium: (interval?: "monthly" | "yearly") => Promise<void>;
   cancelPremium: () => Promise<void>;
 }
 
@@ -79,12 +93,15 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     await persist({ ...state, scansUsedThisMonth: state.scansUsedThisMonth + 1 });
   }, [state, persist]);
 
-  const activatePremium = useCallback(async () => {
-    // NOT: Bu demo amaçlı yerel bir "premium" bayrağıdır.
-    // Gerçek ödeme akışı için README.md > "Abonelik / Ödeme Entegrasyonu" bölümüne bakın
-    // (RevenueCat + App Store / Play Store abonelik ürünleri önerilir).
-    await persist({ ...state, isPremium: true });
-  }, [state, persist]);
+  const activatePremium = useCallback(
+    async (interval: "monthly" | "yearly" = "monthly") => {
+      // NOT: Bu demo amaçlı yerel bir "premium" bayrağıdır.
+      // Gerçek ödeme akışı için README.md > "Abonelik / Ödeme Entegrasyonu" bölümüne bakın
+      // (RevenueCat + App Store / Play Store abonelik ürünleri önerilir).
+      await persist({ ...state, isPremium: true, planInterval: interval, currentPeriodStart: startOfCurrentMonthISO() });
+    },
+    [state, persist]
+  );
 
   const cancelPremium = useCallback(async () => {
     await persist({ ...state, isPremium: false });
