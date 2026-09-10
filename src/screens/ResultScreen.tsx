@@ -61,7 +61,7 @@ function IngredientBox({ item }: { item: AnalyzedIngredient }) {
 }
 
 export default function ResultScreen({ route, navigation }: Props) {
-  const { analysis } = route.params;
+  const { analysis, justAnalyzed } = route.params;
   const [tab, setTab] = useState<Tab>("genel");
   const [filter, setFilter] = useState<Filter>("tumu");
   const { profile } = useUserProfile();
@@ -137,9 +137,17 @@ export default function ResultScreen({ route, navigation }: Props) {
   // addAnalysis() ile GERÇEKTEN kaydedildi (bu ekrana gelmeden önce); burada
   // sadece kısa bir onay/toast göstererek bunu kullanıcıya hissettiriyoruz,
   // ayrı bir ekrana/route'a çıkmadan.
+  //
+  // 10 Eylül düzeltmesi (kullanıcı geri bildirimi — "ürüne her girdiğimde
+  // eklendi bildirimi geliyor, ilk analizden sonra gelmesin"): eskiden bu
+  // efekt HER mount'ta (yani Geçmiş/Arama/Ana Sayfa'dan aynı ürüne tekrar
+  // girildiğinde de) çalışıyordu — oysa ürün sadece İLK analiz edildiğinde
+  // "geçmişe eklendi". Artık SADECE justAnalyzed=true iken (yeni bitmiş bir
+  // analizden geliniyorsa, bkz. AnalyzingScreen.tsx) gösteriliyor.
   const savedToastOpacity = useRef(new Animated.Value(0)).current;
   const savedToastTranslate = useRef(new Animated.Value(-16)).current;
   useEffect(() => {
+    if (!justAnalyzed) return;
     Animated.sequence([
       Animated.parallel([
         Animated.timing(savedToastOpacity, { toValue: 1, duration: 220, easing: Easing.out(Easing.ease), useNativeDriver: true }),
@@ -148,27 +156,29 @@ export default function ResultScreen({ route, navigation }: Props) {
       Animated.delay(1800),
       Animated.timing(savedToastOpacity, { toValue: 0, duration: 260, useNativeDriver: true }),
     ]).start();
-  }, []);
+  }, [justAnalyzed]);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.savedToast,
-          // Not: "top: spacing.sm" yerine "top: insets.top + spacing.sm" —
-          // yukarıdaki yorumdaki asıl düzeltme burada uygulanıyor.
-          { top: insets.top + spacing.sm },
-          { opacity: savedToastOpacity, transform: [{ translateY: savedToastTranslate }] },
-        ]}
-      >
-        <View style={styles.savedToastIconWrap}>
-          <CheckIcon size={12} color="#fff" strokeWidth={3} />
-        </View>
-        <Text style={styles.savedToastText} numberOfLines={1}>
-          {(analysis.category || "Analiz")} geçmişine eklendi
-        </Text>
-      </Animated.View>
+      {justAnalyzed && (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.savedToast,
+            // Not: "top: spacing.sm" yerine "top: insets.top + spacing.sm" —
+            // yukarıdaki yorumdaki asıl düzeltme burada uygulanıyor.
+            { top: insets.top + spacing.sm },
+            { opacity: savedToastOpacity, transform: [{ translateY: savedToastTranslate }] },
+          ]}
+        >
+          <View style={styles.savedToastIconWrap}>
+            <CheckIcon size={12} color="#fff" strokeWidth={3} />
+          </View>
+          <Text style={styles.savedToastText} numberOfLines={1}>
+            {(analysis.category || "Analiz")} geçmişine eklendi
+          </Text>
+        </Animated.View>
+      )}
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.topRow}>
           <TouchableOpacity onPress={() => navigation.popToTop()} style={styles.backBtn} activeOpacity={0.7}>

@@ -33,7 +33,14 @@ export type RootStackParamList = {
     userIntent?: string;
     bothImagesAreIngredients?: boolean;
   };
-  Result: { analysis: ProductAnalysis };
+  // 10 Eylül düzeltmesi (kullanıcı geri bildirimi — "ürüne her girdiğimde
+  // eklendi bildirimi geliyor, ilk analizden sonra gelmesin"): "eklendi"
+  // toast'ı eskiden bu ekran her AÇILDIĞINDA (geçmişten/aramadan tekrar
+  // açılsa bile) gösteriliyordu. justAnalyzed=true SADECE AnalyzingScreen'in
+  // YENİ bir analiz bitirip buraya geçtiği tek yerde gönderiliyor — Geçmiş/
+  // Arama/Ana Sayfa'daki "Son analizler" listesinden bir ürüne tekrar
+  // girildiğinde bu alan hiç verilmiyor (undefined → toast gösterilmez).
+  Result: { analysis: ProductAnalysis; justAnalyzed?: boolean };
   Paywall: undefined;
   Compare: { a: ProductAnalysis; b: ProductAnalysis };
   // --- 9 Eylül eklemeleri: Claude Design export'undaki kalan ekranlar ---

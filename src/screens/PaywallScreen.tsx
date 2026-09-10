@@ -206,6 +206,13 @@ function PlanOption({
   const plan = PLAN_INFO[interval];
   const content = (
     <>
+      {/* 10 Eylül düzeltmesi (kullanıcı geri bildirimi — ekran görüntüsüyle
+          gösterildi): rozet eskiden "position: absolute" ile kartın DIŞINA,
+          üst kenarın üzerine taşıyordu — ScrollView'da üstteki komşu
+          elemanın (dürüst kutu / bazen "Premium'a geç" butonunun) üzerine
+          BİNİYORDU. Artık normal akışta, kartın İÇİNDE, etiketin hemen
+          üzerinde duran sıradan bir satır — taşma/örtüşme fiziksel olarak
+          mümkün değil. */}
       {interval === "yearly" && (
         <View style={styles.planBadge}>
           <Text style={styles.planBadgeText}>%{YEARLY_SAVINGS_PERCENT} tasarruf</Text>
@@ -347,13 +354,12 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   planBadge: {
-    position: "absolute",
-    top: -9,
-    right: 10,
+    alignSelf: "flex-start",
     backgroundColor: good.solid,
     borderRadius: radius.pill,
     paddingHorizontal: 8,
     paddingVertical: 3,
+    marginBottom: 6,
   },
   planBadgeText: { color: "#fff", fontSize: 9, fontFamily: fontFamily.bold },
   planOptionLabel: { color: colors.textMuted, fontSize: 11.5, fontFamily: fontFamily.semibold },

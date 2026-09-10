@@ -126,7 +126,9 @@ export default function AnalyzingScreen({ route, navigation }: Props) {
         if (cancelled) return;
         await addAnalysis(analysis);
         await registerScan();
-        navigation.replace("Result", { analysis });
+        // 10 Eylül eklemesi: SADECE burada, yeni bitmiş bir analizden sonra
+        // justAnalyzed: true gönderiyoruz — bkz. navigation/types.ts'teki not.
+        navigation.replace("Result", { analysis, justAnalyzed: true });
       } catch (e: any) {
         console.warn("[AnalyzingScreen] Analiz başarısız:", e);
         if (!cancelled) setErrorMsg(e?.message || "Bilinmeyen hata");

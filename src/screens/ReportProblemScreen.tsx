@@ -10,14 +10,17 @@ import { sendProblemReport, isReportBackendConfigured } from "../services/report
 
 type Props = NativeStackScreenProps<RootStackParamList, "ReportProblem">;
 
-// TODO (dağıtımdan önce): gerçek destek e-postanla değiştir. Bu adres SADECE
-// aşağıdaki YEDEK (fallback) yol için kullanılıyor — backend
-// (RESEND_API_KEY/REPORT_EMAIL_TO, bkz. server/.env.example) tanımlı
-// değilse ya da otomatik gönderim başarısız olursa, kullanıcının mail
-// uygulamasını bu adres önceden doldurulmuş şekilde açıyoruz. Backend
-// düzgün kurulduysa normal akışta bu adres HİÇ kullanılmıyor — bildirim
-// doğrudan REPORT_EMAIL_TO'ya (Render'daki env değişkeni) gidiyor.
-const SUPPORT_EMAIL = "destek@ozunde.app";
+// 10 Eylül düzeltmesi: eskiden burada "destek@ozunde.app" gibi hiç var
+// olmayan/kayıtlı olmayan bir yer tutucu adres duruyordu — yedek yol devreye
+// girdiğinde kullanıcı mailini oraya göndermeye çalışsaydı muhtemelen
+// ulaşmayacaktı. Artık senin Render'da REPORT_EMAIL_TO olarak zaten
+// kullandığın GERÇEK adresle aynı. Bu adres SADECE aşağıdaki YEDEK
+// (fallback) yol için kullanılıyor — backend (RESEND_API_KEY/REPORT_EMAIL_TO,
+// bkz. server/.env.example) tanımlı değilse ya da otomatik gönderim
+// başarısız olursa, kullanıcının mail uygulamasını bu adres önceden
+// doldurulmuş şekilde açıyoruz. Backend düzgün çalışıyorsa normal akışta bu
+// adres HİÇ kullanılmıyor — bildirim doğrudan REPORT_EMAIL_TO'ya gidiyor.
+const SUPPORT_EMAIL = "destek.ozunde@gmail.com";
 
 const ISSUE_TYPES = [
   { title: "Bileşenler yanlış okundu", desc: "Etikette olmayan ya da eksik bileşen var" },
