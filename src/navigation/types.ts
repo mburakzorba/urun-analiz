@@ -66,6 +66,10 @@ export type RootStackParamList = {
   ReportSent: { autoSent: boolean } | undefined;
   Search: undefined;
   LimitReached: undefined;
+  // 10 Eylül eklemesi (tasarım "B Sonucu paylaş" — son eksik ekran): Sonuç
+  // ekranındaki eski düz-metin Share.share() çağrısı yerine, görsel/
+  // paylaşılabilir bir "kart" önizlemesi gösteren ayrı bir ekran.
+  ShareResult: { analysis: ProductAnalysis };
 };
 
 // Home/History/Profile ekranları hem kendi sekme sırasında GEZİNMELİ (ör.

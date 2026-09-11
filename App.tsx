@@ -38,6 +38,8 @@ import ReportProblemScreen from "./src/screens/ReportProblemScreen";
 import ReportSentScreen from "./src/screens/ReportSentScreen";
 import SearchScreen from "./src/screens/SearchScreen";
 import LimitReachedScreen from "./src/screens/LimitReachedScreen";
+// 10 Eylül eklemesi: tasarım "B Sonucu paylaş" — son eksik ekran.
+import ShareResultScreen from "./src/screens/ShareResultScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -121,6 +123,10 @@ export default function App() {
                   <Stack.Screen name="ReportSent" component={ReportSentScreen} />
                   <Stack.Screen name="Search" component={SearchScreen} options={{ presentation: "fullScreenModal" }} />
                   <Stack.Screen name="LimitReached" component={LimitReachedScreen} options={{ presentation: "modal" }} />
+                  {/* 10 Eylül eklemesi: Sonuç ekranındaki "Paylaş"ın açtığı,
+                      görsel paylaşım kartı önizleme ekranı — Paywall gibi bir
+                      "sheet" hissi için modal. */}
+                  <Stack.Screen name="ShareResult" component={ShareResultScreen} options={{ presentation: "modal" }} />
                 </Stack.Navigator>
               </NavigationContainer>
             </UserProfileProvider>

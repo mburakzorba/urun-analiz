@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, Animated, Easing } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Easing } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
@@ -108,21 +108,12 @@ export default function ResultScreen({ route, navigation }: Props) {
     return analysis.ingredients.filter((i) => i.risk === riskMap[filter as Exclude<Filter, "tumu">]);
   }, [analysis.ingredients, filter]);
 
-  const handleShare = async () => {
-    const lines = [
-      `🧴 ${analysis.productName}`,
-      analysis.brand ? `Marka: ${analysis.brand}` : null,
-      "",
-      `📊 Genel Kullanılabilirlik: ${overall.label}`,
-      `🩺 Sağlık: ${health.label}`,
-      "",
-      "özünde uygulamasıyla tarandı.",
-    ].filter((l): l is string => !!l);
-    try {
-      await Share.share({ message: lines.join("\n") });
-    } catch {
-      // Kullanıcı paylaşım sayfasını iptal etmiş olabilir — sessizce geç.
-    }
+  // 10 Eylül düzeltmesi (tasarım "B Sonucu paylaş" — son eksik ekran):
+  // eskiden burada düz metinli bir Share.share() çağrısı vardı; artık
+  // tasarımdaki gerçek, görsel/markalı paylaşım kartını gösteren ayrı bir
+  // ekrana yönlendiriyoruz — bkz. ShareResultScreen.tsx.
+  const handleShare = () => {
+    navigation.navigate("ShareResult", { analysis });
   };
 
   // 9 Eylül düzeltmesi: eskiden burada sadece bir Alert gösterilip hiçbir

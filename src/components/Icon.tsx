@@ -260,6 +260,35 @@ export function WifiOffIcon({ size = 18, color = "#201E1D", strokeWidth = 2.75 }
   );
 }
 
+// 10 Eylül eklemesi: "B Sonucu paylaş" ekranı için 2 yeni ikon —
+// "Kaydet" (cihaz galerisine indirme) ve tasarımdaki "Bağlantı" butonunun
+// yerini alan "Metni kopyala" (gerçek bir ürün linki olmadığı için, bkz.
+// ShareResultScreen.tsx'teki açıklama yorumu).
+export function DownloadIcon({ size = 18, color = "#201E1D", strokeWidth = 2.75 }: IconProps) {
+  return (
+    <Svg {...base(size)}>
+      <Path d="M12 3v12" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M7.5 10.5 12 15l4.5-4.5" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M4.5 16.5V19a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5v-2.5" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function CopyIcon({ size = 18, color = "#201E1D", strokeWidth = 2.75 }: IconProps) {
+  return (
+    <Svg {...base(size)}>
+      <Path
+        d="M9.5 8.5h8a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 8 18V10a1.5 1.5 0 0 1 1.5-1.5Z"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path d="M5.5 15.5H5A1.5 1.5 0 0 1 3.5 14V6A1.5 1.5 0 0 1 5 4.5h8A1.5 1.5 0 0 1 14.5 6v.5" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
 export function ImageOffIcon({ size = 18, color = "#201E1D", strokeWidth = 2.75 }: IconProps) {
   return (
     <Svg {...base(size)}>
