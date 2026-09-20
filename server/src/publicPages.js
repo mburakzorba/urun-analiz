@@ -69,6 +69,28 @@ function section(title, html) {
 const LAST_UPDATED = "16 Eylül 2026";
 const CONTACT_EMAIL = "destek.ozunde@gmail.com";
 
+// 20 Eylül eklemesi: Google Cloud'un OAuth Branding sayfasındaki
+// "Application home page" alanı zorunlu (boş bırakılırsa "Publish app"
+// butonu engelleniyor) — uygulamanın ayrı bir web sitesi olmadığı için,
+// bu backend'de basit bir tanıtım/ana sayfa sunuyoruz.
+function renderHomeHtml() {
+  const body = `
+<p class="eyebrow">özünde</p>
+<h1>Kişisel bakım ürünlerini anla</h1>
+<p class="updated">özünde, bir ürün fotoğrafından/etiketinden içerik listesini yapay zekâ ile analiz eden bir mobil uygulamadır.</p>
+${section(
+  "Uygulama hakkında",
+  `özünde, taradığın kozmetik/kişisel bakım ürünlerinin içerik listesini analiz ederek genel bir değerlendirme (etkinlik, sağlık skoru, bileşen bazlı risk değerlendirmesi gibi) sunar. Bu sonuçlar bilgilendirme amaçlıdır, tıbbi tavsiye yerine geçmez.`
+)}
+${section(
+  "Yasal",
+  `<a href="/legal/privacy">Gizlilik politikası</a> &middot; <a href="/legal/terms">Kullanım koşulları</a> &middot; <a href="/account/delete-request">Hesabını sil</a>`
+)}
+${section("İletişim", `Sorularınız için: <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a>`)}
+`;
+  return pageShell({ title: "özünde", bodyHtml: body });
+}
+
 function renderPrivacyHtml() {
   const body = `
 <p class="eyebrow">özünde &middot; yasal</p>
@@ -194,4 +216,10 @@ ${statusHtml}
   return pageShell({ title: "Hesabını sil", bodyHtml: body });
 }
 
-module.exports = { renderPrivacyHtml, renderTermsHtml, renderDeleteRequestFormHtml, CONTACT_EMAIL };
+module.exports = {
+  renderHomeHtml,
+  renderPrivacyHtml,
+  renderTermsHtml,
+  renderDeleteRequestFormHtml,
+  CONTACT_EMAIL,
+};

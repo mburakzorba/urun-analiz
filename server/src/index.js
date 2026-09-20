@@ -19,7 +19,7 @@ const { getSupabaseAdmin } = require("./supabaseAdmin");
 // 20 Eylül eklemesi: Play Store yayını için gereken herkese açık yasal
 // sayfalar (gizlilik/koşullar) + uygulama dışından hesap silme talebi
 // formu. Bkz. publicPages.js başındaki not.
-const { renderPrivacyHtml, renderTermsHtml, renderDeleteRequestFormHtml } = require("./publicPages");
+const { renderHomeHtml, renderPrivacyHtml, renderTermsHtml, renderDeleteRequestFormHtml } = require("./publicPages");
 
 const app = express();
 // Render (ve çoğu barındırma servisi), istekleri kendi ters proxy'sinden
@@ -64,6 +64,13 @@ app.use(express.urlencoded({ extended: true }));
 
 app.get("/health", (_req, res) => {
   res.json({ ok: true, hasApiKey: Boolean(process.env.ANTHROPIC_API_KEY), version: APP_VERSION });
+});
+
+// 20 Eylül eklemesi: Google Cloud OAuth Branding sayfasındaki zorunlu
+// "Application home page" alanı için basit bir ana sayfa (bkz. publicPages.js).
+app.get("/", (_req, res) => {
+  res.set("Content-Type", "text/html; charset=utf-8");
+  res.send(renderHomeHtml());
 });
 
 // 20 Eylül eklemesi: herkese açık, uygulamayı açmadan tarayıcıdan
