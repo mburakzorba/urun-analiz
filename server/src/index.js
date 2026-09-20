@@ -11,6 +11,15 @@ const { getMockAnalysis } = require("./mockAnalysis");
 const { lookupBarcode } = require("./openBeautyFacts");
 const { getCachedProduct, saveCachedProduct, normalizeProductKey } = require("./productCache");
 const { sendReportEmail } = require("./reportProblem");
+// 16 Eylül eklemesi: gerçek hesap sistemi (bkz. src/context/AuthContext.tsx)
+// — hesap OLUŞTURMA/giriş tamamen client'ta, Supabase'in kendi SDK'sıyla
+// yapılıyor; backend'e SADECE hesap SİLME için ihtiyaç var (bkz. aşağıdaki
+// /account/delete ve supabaseAdmin.js'teki uzun not).
+const { getSupabaseAdmin } = require("./supabaseAdmin");
+// 20 Eylül eklemesi: Play Store yayını için gereken herkese açık yasal
+// sayfalar (gizlilik/koşullar) + uygulama dışından hesap silme talebi
+// formu. Bkz. publicPages.js başındaki not.
+const { renderPrivacyHtml, renderTermsHtml, renderDeleteRequestFormHtml } = require("./publicPages");
 
 const app = express();
 // Render (ve çoğu barındırma servisi), istekleri kendi ters proxy'sinden
@@ -30,7 +39,7 @@ const PORT = process.env.PORT || 3000;
 // değişiklik yapıp Render'a gönderdikten sonra tarayıcıda /health adresine
 // bakınca burada yazan değeri görüyorsan yeni kod canlıdır. Görmüyorsan
 // deploy tamamlanmamıştır (ya da hâlâ sürüyordur).
-const APP_VERSION = "2026-09-10-report-problem-tanilama";
+const APP_VERSION = "2026-09-20-herkese-acik-yasal-sayfalar";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -47,9 +56,74 @@ const uploadPhoto = upload.fields([{ name: "photo", maxCount: 1 }]);
 
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
+// Hesap silme talep formu (aşağıdaki /account/delete-request) normal bir
+// HTML <form> ile gönderiliyor — bu da application/x-www-form-urlencoded
+// gövde demektir, express.json() bunu PARSE ETMEZ. Bu satır olmadan
+// req.body her zaman boş gelirdi.
+app.use(express.urlencoded({ extended: true }));
 
 app.get("/health", (_req, res) => {
   res.json({ ok: true, hasApiKey: Boolean(process.env.ANTHROPIC_API_KEY), version: APP_VERSION });
+});
+
+// 20 Eylül eklemesi: herkese açık, uygulamayı açmadan tarayıcıdan
+// görüntülenebilen yasal sayfalar — Play Console'un Data Safety formu ve
+// mağaza sayfası bunun için bir URL istiyor. İçerik publicPages.js'te,
+// uygulama içindeki PrivacyScreen.tsx/TermsScreen.tsx ile aynı metin.
+app.get("/legal/privacy", (_req, res) => {
+  res.set("Content-Type", "text/html; charset=utf-8");
+  res.send(renderPrivacyHtml());
+});
+
+app.get("/legal/terms", (_req, res) => {
+  res.set("Content-Type", "text/html; charset=utf-8");
+  res.send(renderTermsHtml());
+});
+
+// 20 Eylül eklemesi: Play politikası, hesap oluşturma özelliği olan
+// uygulamalarda UYGULAMA DIŞINDAN da erişilebilir bir hesap silme talep
+// yolu istiyor. GET, boş formu gösterir; POST talebi alır ve bize (mevcut
+// Resend altyapısıyla, "Sorun bildir" ile aynı yol) bir bildirim e-postası
+// gönderir — siz bu talebi görüp Supabase'den elle silersiniz (tam otomatik
+// değil, kimlik doğrulaması olmadan web'den doğrudan silmek güvenli değil).
+app.get("/account/delete-request", (_req, res) => {
+  res.set("Content-Type", "text/html; charset=utf-8");
+  res.send(renderDeleteRequestFormHtml({}));
+});
+
+const deleteRequestLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Çok fazla istek gönderildi, lütfen biraz sonra tekrar dene." },
+});
+
+app.post("/account/delete-request", deleteRequestLimiter, async (req, res) => {
+  const email = String((req.body && req.body.email) || "").trim();
+  const emailLooksValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  if (!emailLooksValid) {
+    res.set("Content-Type", "text/html; charset=utf-8");
+    return res.status(400).send(renderDeleteRequestFormHtml({ status: "error" }));
+  }
+  try {
+    await sendReportEmail({
+      subject: `[özünde] Hesap silme talebi: ${email}`,
+      bodyLines: [
+        "Kullanıcı, uygulamayı açmadan (web formundan) hesap silme talebinde bulundu.",
+        `E-posta: ${email}`,
+        "",
+        "Bu talebi en geç 30 gün içinde Supabase > Authentication > Users üzerinden ilgili kullanıcıyı bularak elle sil.",
+      ],
+    });
+    console.log(`[/account/delete-request] Talep alındı: ${email}`);
+    res.set("Content-Type", "text/html; charset=utf-8");
+    res.send(renderDeleteRequestFormHtml({ status: "sent" }));
+  } catch (err) {
+    console.error("[/account/delete-request] Talep e-postası gönderilemedi:", err.message);
+    res.set("Content-Type", "text/html; charset=utf-8");
+    res.status(500).send(renderDeleteRequestFormHtml({ status: "error" }));
+  }
 });
 
 // --- Güvenlik: /analyze hem para hem AI çağrısı maliyeti olan tek endpoint,
@@ -79,6 +153,12 @@ if (!process.env.APP_SHARED_SECRET) {
 if (!process.env.RESEND_API_KEY || !process.env.REPORT_EMAIL_TO) {
   console.warn(
     "[index] UYARI: RESEND_API_KEY ve/veya REPORT_EMAIL_TO tanımlı değil — /report-problem endpoint'i çalışmayacak (bildirimler e-posta olarak GÖNDERİLMEYECEK). Render > Environment'a ikisini de ekle (bkz. server/.env.example)."
+  );
+}
+// 16 Eylül eklemesi: hesap silme için gerekli.
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.warn(
+    "[index] UYARI: SUPABASE_URL ve/veya SUPABASE_SERVICE_ROLE_KEY tanımlı değil — /account/delete endpoint'i çalışmayacak (kullanıcılar hesaplarını SİLEMEYECEK). Render > Environment'a ikisini de ekle (bkz. server/.env.example). NOT: bu SERVICE ROLE anahtarı — Supabase projesindeki 'anon public' anahtarla KARIŞTIRMA, o farklı ve buraya yazılmamalı."
   );
 }
 
@@ -328,6 +408,57 @@ app.post("/report-problem", checkAppSecret, reportLimiter, uploadPhoto, async (r
   } catch (err) {
     console.error("[/report-problem] Bildirim e-postası gönderilemedi:", err.message);
     res.status(500).json({ error: err?.message || "Bildirim gönderilemedi" });
+  }
+});
+
+// 16 Eylül eklemesi: gerçek hesap silme. Client (bkz. AuthContext.tsx >
+// deleteAccount) kullanıcının GEÇERLİ Supabase oturum jetonunu (access
+// token) "Authorization: Bearer <token>" header'ıyla gönderir. Burada bu
+// jetonun GERÇEKTEN o kullanıcıya ait, geçerli bir oturuma karşılık
+// geldiğini Supabase'e sorup doğruluyoruz (supabaseAdmin.auth.getUser) —
+// bu adım olmadan biri rastgele bir kullanıcı ID'si uydurup BAŞKASININ
+// hesabını sildirebilirdi. Doğrulama geçerse, service-role istemcisiyle
+// (auth.admin.deleteUser) kullanıcıyı Supabase'den kalıcı olarak siliyoruz.
+// /analyze ile aynı X-App-Secret koruması + ayrı, sıkı bir hız sınırı var.
+const accountLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Çok fazla istek gönderildi, lütfen biraz sonra tekrar dene." },
+});
+
+app.post("/account/delete", checkAppSecret, accountLimiter, async (req, res) => {
+  try {
+    const supabaseAdmin = getSupabaseAdmin();
+    if (!supabaseAdmin) {
+      return res
+        .status(500)
+        .json({ error: "Hesap silme şu an yapılandırılmamış. Lütfen daha sonra tekrar dene." });
+    }
+
+    const authHeader = req.headers.authorization || "";
+    const accessToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+    if (!accessToken) {
+      return res.status(401).json({ error: "Giriş yapılmamış." });
+    }
+
+    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(accessToken);
+    if (userError || !userData?.user) {
+      return res.status(401).json({ error: "Oturum geçersiz veya süresi dolmuş. Lütfen tekrar giriş yap." });
+    }
+
+    const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userData.user.id);
+    if (deleteError) {
+      console.error("[/account/delete] Kullanıcı silinemedi:", deleteError.message);
+      return res.status(500).json({ error: "Hesap silinemedi." });
+    }
+
+    console.log(`[/account/delete] Kullanıcı silindi: ${userData.user.id}`);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("[/account/delete] Beklenmeyen hata:", err);
+    res.status(500).json({ error: "Sunucu hatası" });
   }
 });
 
