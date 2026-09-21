@@ -4,20 +4,19 @@
     "slug": "urun-analiz",
     "version": "1.0.0",
     "orientation": "portrait",
+    "scheme": "ozunde",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
         "NSCameraUsageDescription": "Ürün etiketini/içeriğini analiz etmek için kameraya erişim gerekiyor.",
-        "NSPhotoLibraryUsageDescription": "Galerinden ürün fotoğrafı seçebilmek için erişim gerekiyor.",
-        "ITSAppUsesNonExemptEncryption": false
-      },
-      "bundleIdentifier": "com.burakzorba3737.urunanaliz"
+        "NSPhotoLibraryUsageDescription": "Galerinden ürün fotoğrafı seçebilmek için erişim gerekiyor."
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#B2622D",
+        "backgroundColor": "#E36D20",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -58,7 +57,14 @@
           "savePhotosPermission": "Oluşturduğun paylaşım kartını galerine kaydedebilmek için izin gerekiyor.",
           "isAccessMediaLocationEnabled": false
         }
-      ]
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#E48343"
+        }
+      ],
+      "@react-native-google-signin/google-signin"
     ],
     "extra": {
       "eas": {

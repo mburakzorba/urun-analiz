@@ -5,7 +5,8 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
 import { colors, spacing, radius, fontFamily, shadows, accent as accentRamp } from "../theme";
 import { useSubscription } from "../context/SubscriptionContext";
-import { StarIcon } from "../components/Icon";
+import { StarIcon, PlusIcon } from "../components/Icon";
+import { getTier, DEFAULT_TIER_ID, ADDON, CHEAPEST_TIER } from "../utils/plans";
 
 type Props = NativeStackScreenProps<RootStackParamList, "LimitReached">;
 
@@ -14,8 +15,19 @@ type Props = NativeStackScreenProps<RootStackParamList, "LimitReached">;
 // kalıyordu (dokununca hiçbir şey olmuyordu) — bu tasarımdaki ekran hiç
 // gösterilemiyordu. Artık HomeScreen bu durumda butonu devre dışı bırakmak
 // yerine bu ekrana yönlendiriyor (bkz. HomeScreen.tsx > handleScanPress).
+//
+// 12 Eylül değişikliği: eskiden buraya SADECE ücretsiz hakkı biten
+// kullanıcılar düşebiliyordu (fiyat da "89,99 ₺" diye SABİT/yanlış
+// yazılmıştı — artık plans.ts'ten canlı okunuyor). Artık HomeScreen, canScan
+// false olan HER durumda (ücretsiz hakkı biten VEYA paket kotası dolan
+// Premium kullanıcı) buraya yönlendiriyor — bu yüzden ekran artık isPremium'a
+// göre İKİ farklı, doğru mesaj/aksiyon seti gösteriyor.
 export default function LimitReachedScreen({ navigation }: Props) {
   const { state } = useSubscription();
+  const tier = getTier(state.tierId || DEFAULT_TIER_ID);
+
+  const handleBuyAddon = () => navigation.navigate("Payment", { kind: "addon" });
+  const handleUpgrade = () => navigation.replace("Paywall");
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -23,27 +35,59 @@ export default function LimitReachedScreen({ navigation }: Props) {
         <View style={styles.iconBadge}>
           <StarIcon size={26} color={colors.primaryDark} />
         </View>
-        <Text style={styles.title}>Deneme hakkın doldu</Text>
-        <Text style={styles.subtitle}>
-          Ücretsiz plandaki {state.freeScansLimit} ürün analizini kullandın. Premium ile sınırsız analiz ve derin
-          bileşen raporu açılır.
-        </Text>
 
-        <View style={styles.planCard}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.planTitle}>Aylık plan</Text>
-            <Text style={styles.planSub}>İptal edilebilir</Text>
-          </View>
-          <Text style={styles.planPrice}>89,99 ₺</Text>
-        </View>
+        {state.isPremium ? (
+          <>
+            <Text style={styles.title}>Bu ayki kotan doldu</Text>
+            <Text style={styles.subtitle}>
+              {tier.name} paketindeki {tier.scansPerMonth} taramanın hepsini bu ay kullandın. Ay sonuna kadar
+              beklemeden devam etmek için ek tarama alabilir ya da daha yüksek kotalı bir pakete geçebilirsin.
+            </Text>
 
-        <TouchableOpacity onPress={() => navigation.replace("Paywall")} activeOpacity={0.9} style={{ width: "100%" }}>
-          <View style={styles.primaryBtn}>
-            <Text style={styles.primaryBtnText}>Premium'a geç</Text>
-          </View>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.7} style={{ marginTop: spacing.md }}>
-          <Text style={styles.secondaryText}>Şimdi değil</Text>
+            <TouchableOpacity onPress={handleBuyAddon} activeOpacity={0.9} style={{ width: "100%" }}>
+              <View style={styles.primaryBtn}>
+                <PlusIcon size={15} color="#fff" />
+                <Text style={styles.primaryBtnText}>
+                  {ADDON.name} al · {ADDON.priceLabel}
+                </Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleUpgrade} activeOpacity={0.7} style={{ marginTop: spacing.md }}>
+              <Text style={styles.secondaryText}>Paketi yükselt</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <Text style={styles.title}>Deneme hakkın doldu</Text>
+            <Text style={styles.subtitle}>
+              Ücretsiz plandaki {state.freeScansLimit} ürün analizini kullandın. Premium paketlerle ayda{" "}
+              {CHEAPEST_TIER.scansPerMonth}'den başlayan tarama hakkına, ya da abone olmadan tek seferlik ek
+              taramaya geçebilirsin.
+            </Text>
+
+            <View style={styles.planCard}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.planTitle}>{CHEAPEST_TIER.name}'tan itibaren</Text>
+                <Text style={styles.planSub}>Ayda {CHEAPEST_TIER.scansPerMonth} tarama · iptal edilebilir</Text>
+              </View>
+              <Text style={styles.planPrice}>{CHEAPEST_TIER.priceLabel}</Text>
+            </View>
+
+            <TouchableOpacity onPress={handleUpgrade} activeOpacity={0.9} style={{ width: "100%" }}>
+              <View style={styles.primaryBtn}>
+                <Text style={styles.primaryBtnText}>Premium'a geç</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleBuyAddon} activeOpacity={0.7} style={{ marginTop: spacing.md }}>
+              <Text style={styles.secondaryText}>
+                Sadece {ADDON.priceLabel} karşılığında {ADDON.extraScans} ek tarama al
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
+
+        <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.7} style={{ marginTop: spacing.lg }}>
+          <Text style={styles.dismissText}>Şimdi değil</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -79,13 +123,16 @@ const styles = StyleSheet.create({
   planSub: { color: colors.textFaint, fontSize: 11, marginTop: 2 },
   planPrice: { color: colors.text, fontSize: 15, fontFamily: fontFamily.bold },
   primaryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
     height: 50,
     borderRadius: radius.pill,
     backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
     ...shadows.glow(colors.primaryDark),
   },
   primaryBtnText: { color: "#fff", fontSize: 14.5, fontFamily: fontFamily.semibold, letterSpacing: -0.2 },
-  secondaryText: { color: colors.textMuted, fontSize: 13, fontFamily: fontFamily.semibold },
+  secondaryText: { color: colors.textMuted, fontSize: 13, fontFamily: fontFamily.semibold, textAlign: "center" },
+  dismissText: { color: colors.textFaint, fontSize: 12.5, fontFamily: fontFamily.semibold },
 });

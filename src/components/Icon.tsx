@@ -289,6 +289,124 @@ export function CopyIcon({ size = 18, color = "#201E1D", strokeWidth = 2.75 }: I
   );
 }
 
+// --- 11 Eylül eklemeleri: "ürün ne ile ilgiliyse onunla ilgili bir ikon"
+// (kullanıcı isteği) — Ana Sayfa/Sonuç ekranındaki boş kare kutunun yerine,
+// ürünün kategorisine göre değişen bu 6 ikon kullanılıyor (bkz.
+// utils/productIcon.ts'teki eşleştirme mantığı).
+
+// Ruj (dudak ürünleri)
+export function LipstickIcon({ size = 18, color = "#201E1D", strokeWidth = 2.2 }: IconProps) {
+  return (
+    <Svg {...base(size)}>
+      <Path
+        d="M10 21.5h4v-9l1.8-6.3a1 1 0 0 0-.96-1.2h-5.68a1 1 0 0 0-.96 1.2L10 12.5v9Z"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path d="M9.6 12.5h4.8" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+// Parfüm / sprey (deodorant, koku ürünleri)
+export function PerfumeIcon({ size = 18, color = "#201E1D", strokeWidth = 2.2 }: IconProps) {
+  return (
+    <Svg {...base(size)}>
+      <Path
+        d="M8.5 9.5h7v10.5a1.5 1.5 0 0 1-1.5 1.5h-4a1.5 1.5 0 0 1-1.5-1.5V9.5Z"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path d="M10.3 9.5V6.3a1 1 0 0 1 1-1h1.4a1 1 0 0 1 1 1V9.5" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M10.8 4.4h2.4" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+      <Path d="M16.5 5.5 18.3 4M16.8 8h2" stroke={color} strokeWidth={strokeWidth * 0.85} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+// Krem / losyon (kavanoz)
+export function CreamJarIcon({ size = 18, color = "#201E1D", strokeWidth = 2.2 }: IconProps) {
+  return (
+    <Svg {...base(size)}>
+      <Path
+        d="M5.5 10h13v8a2.5 2.5 0 0 1-2.5 2.5h-8A2.5 2.5 0 0 1 5.5 18v-8Z"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M5 6.5h14a1 1 0 0 1 1 1V9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7.5a1 1 0 0 1 1-1Z"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+// Şişe (şampuan, saç kremi, jel gibi genel kişisel bakım ürünleri) — hiçbir
+// kategoriyle eşleşmeyen ürünler için VARSAYILAN ikon da bu.
+export function BottleIcon({ size = 18, color = "#201E1D", strokeWidth = 2.2 }: IconProps) {
+  return (
+    <Svg {...base(size)}>
+      <Path
+        d="M8.5 8.5h7v11a1.5 1.5 0 0 1-1.5 1.5h-4a1.5 1.5 0 0 1-1.5-1.5v-11Z"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path d="M10 8.5V5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3.5" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M9.5 4h5" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+// Sabun
+export function SoapIcon({ size = 18, color = "#201E1D", strokeWidth = 2.2 }: IconProps) {
+  return (
+    <Svg {...base(size)}>
+      <Path
+        d="M4 14.5a4.5 4.5 0 0 1 4.5-4.5h7a4.5 4.5 0 0 1 4.5 4.5V16a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-1.5Z"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path d="M8.5 10.2c-.3-1 .2-1.9 1-2.4" stroke={color} strokeWidth={strokeWidth * 0.85} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+// Serum / damlalıklı ürün
+export function DropperIcon({ size = 18, color = "#201E1D", strokeWidth = 2.2 }: IconProps) {
+  return (
+    <Svg {...base(size)}>
+      <Path
+        d="M9 11h6v6.5a3 3 0 0 1-3 3 3 3 0 0 1-3-3V11Z"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path d="M10.5 11V6M13.5 11V6" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
+      <Path
+        d="M9.8 6h4.4a1 1 0 0 0 1-1V3.8a1 1 0 0 0-1-1H9.8a1 1 0 0 0-1 1V5a1 1 0 0 0 1 1Z"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 export function ImageOffIcon({ size = 18, color = "#201E1D", strokeWidth = 2.75 }: IconProps) {
   return (
     <Svg {...base(size)}>

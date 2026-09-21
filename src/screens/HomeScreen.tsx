@@ -1,14 +1,16 @@
-import React, { useMemo } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList, Alert } from "react-native";
+import React, { useMemo, useEffect } from "react";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { MainTabScreenProps } from "../navigation/types";
-import { colors, spacing, radius, fontFamily, shadows, accent2 } from "../theme";
+import { colors, spacing, radius, fontFamily, shadows, accent2, vividStat } from "../theme";
+import ProductThumb from "../components/ProductThumb";
 import { useSubscription } from "../context/SubscriptionContext";
 import { useHistory } from "../context/HistoryContext";
 import { useUserProfile } from "../context/UserProfileContext";
 import { shortHealthVerdict, overallScore } from "../utils/verdict";
 import { StarIcon, CameraIcon, HistoryIcon, ChevronRight } from "../components/Icon";
+import { ensureRemindersScheduled } from "../services/notifications";
 
 type Props = MainTabScreenProps<"Home">;
 
@@ -23,9 +25,21 @@ function withOpacity(hex: string, alpha: number) {
 }
 
 export default function HomeScreen({ navigation }: Props) {
-  const { state, remainingFreeScans, canScan, premiumFairUseExceeded } = useSubscription();
+  const { state, canScan, totalRemainingScans } = useSubscription();
   const { history } = useHistory();
   const { profile, isProfileEmpty } = useUserProfile();
+
+  // 18 Eylül değişikliği: eskiden hatırlatma izni SADECE Bildirimler
+  // ekranındaki bir anahtara basılınca isteniyordu. Kullanıcı geri bildirimi
+  // üzerine o anahtar kaldırıldı — artık bildirim izni burada, Ana Sayfa
+  // (uygulama açılınca ilk görülen sekme) ilk yüklendiğinde SESSİZCE
+  // isteniyor; izin verilirse hatırlatmalar hemen, otomatik planlanıyor.
+  // İzin zaten sorulmuş/reddedilmişse (canAskAgain=false) tekrar sormaz.
+  // canScan değiştiğinde (ör. paket bitti/ek paket alındı) de tazeler ki
+  // bir dahaki hatırlatma doğru mesaj havuzunu kullansın.
+  useEffect(() => {
+    ensureRemindersScheduled(canScan);
+  }, [canScan]);
 
   // "Faydalı / Dikkat / Riskli" — tüm geçmiş taramalardaki bileşenlerin risk
   // dağılımı toplamı (tasarımdaki 01 Ana sayfa'da 42/9/4 örneği ile aynı
@@ -48,20 +62,19 @@ export default function HomeScreen({ navigation }: Props) {
   const handleScanPress = () => {
     if (canScan) {
       navigation.navigate("Scan");
-    } else if (premiumFairUseExceeded) {
-      // Premium kullanıcı zaten abone — burada "Premium'a geç" demek
-      // anlamsız/kafa karıştırıcı olur. Âdil kullanım sınırını pazarlamada
-      // hiç göstermediğimiz için mesajı da yumuşak tutuyoruz, tam sayıyı
-      // belirtmiyoruz.
-      Alert.alert(
-        "Yoğun kullanım tespit edildi",
-        "Bu ay çok sayıda tarama yaptın. Sistemi herkes için sağlıklı tutmak adına kısa bir süreliğine yeni taramaları duraklattık — sınırın ayın başında otomatik sıfırlanacak."
-      );
     } else {
       // 9 Eylül düzeltmesi: eskiden bu buton (canScan false olunca) tamamen
       // DEVRE DIŞI bırakılıyordu (disabled={!canScan} — bkz. JSX), yani
       // tasarımdaki "L Limit doldu" ekranına hiç ulaşılamıyordu. Artık buton
-      // her zaman aktif; ücretsiz hak bittiğinde bu özel ekrana yönlendiriyor.
+      // her zaman aktif; hak bittiğinde bu özel ekrana yönlendiriyor.
+      //
+      // 12 Eylül değişikliği: eskiden burada, Premium kullanıcı "âdil
+      // kullanım" sınırını aşınca AYRI bir Alert gösteriliyordu (paket kotası
+      // kavramı yoktu, tek bir "sınırsız + 300 âdil kullanım" planı vardı).
+      // Artık her paketin kendi net kotası var, ve kota dolunca kullanıcının
+      // önünde GERÇEK seçenekler var (daha büyük pakete geç / ek tarama
+      // paketi al) — bunları LimitReachedScreen zaten (isPremium'a göre)
+      // doğru şekilde gösteriyor, o yüzden ayrı bir Alert'e gerek kalmadı.
       navigation.navigate("LimitReached");
     }
   };
@@ -118,7 +131,15 @@ export default function HomeScreen({ navigation }: Props) {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.premiumTitle}>Premium'a geç</Text>
-                <Text style={styles.premiumSub}>Ücretsiz plan · {remainingFreeScans} deneme hakkı kaldı</Text>
+                {/* 13 Eylül düzeltmesi (kullanıcı geri bildirimi — "ek paket
+                    almasına rağmen ana sayfada ücretsiz 3 tane hak kaldı
+                    diyor"): burada eskiden SADECE remainingFreeScans
+                    gösteriliyordu — ek tarama paketi satın alınca bakiye
+                    değişse bile bu metin hep aynı (yanlış) sayıyı
+                    gösteriyordu. totalRemainingScans, ücretsiz kota + ek
+                    tarama bakiyesini toplayarak kullanıcının GERÇEKTEN kaç
+                    tarama hakkı kaldığını gösterir. */}
+                <Text style={styles.premiumSub}>Ücretsiz plan · {totalRemainingScans} hak kaldı</Text>
               </View>
               <ChevronRight size={16} color="rgba(255,253,249,0.5)" />
             </LinearGradient>
@@ -148,7 +169,7 @@ export default function HomeScreen({ navigation }: Props) {
             <View style={[styles.heroBtn, canScan ? styles.heroBtnEnabled : styles.heroBtnDisabled]}>
               <CameraIcon size={17} color="#fff" />
               <Text style={styles.heroBtnText}>
-                {canScan ? "Analiz et" : premiumFairUseExceeded ? "Az Sonra Tekrar Dene" : "Aylık Hakkın Doldu"}
+                {canScan ? "Analiz et" : "Tarama Hakkın Doldu"}
               </Text>
             </View>
           </TouchableOpacity>
@@ -156,7 +177,7 @@ export default function HomeScreen({ navigation }: Props) {
 
         <View style={styles.statRow}>
           <View style={styles.statCard}>
-            <Text style={[styles.statValue, { color: accent2[600] }]}>{ingredientTotals.good}</Text>
+            <Text style={[styles.statValue, { color: vividStat.good }]}>{ingredientTotals.good}</Text>
             <Text style={styles.statLabel}>faydalı</Text>
           </View>
           <View style={styles.statCard}>
@@ -164,7 +185,7 @@ export default function HomeScreen({ navigation }: Props) {
             <Text style={styles.statLabel}>dikkat</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={[styles.statValue, { color: "#7A2A17" }]}>{ingredientTotals.risky}</Text>
+            <Text style={[styles.statValue, { color: vividStat.risky }]}>{ingredientTotals.risky}</Text>
             <Text style={styles.statLabel}>riskli</Text>
           </View>
         </View>
@@ -198,7 +219,7 @@ export default function HomeScreen({ navigation }: Props) {
                   onPress={() => navigation.navigate("Result", { analysis: item })}
                   activeOpacity={0.85}
                 >
-                  <View style={styles.thumb} />
+                  <ProductThumb category={item.category} productName={item.productName} size={42} />
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={styles.historyItemTitle} numberOfLines={1}>{item.productName}</Text>
                     <Text style={styles.historyItemDate} numberOfLines={1}>
@@ -296,7 +317,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.hairline,
   },
-  thumb: { width: 42, height: 42, borderRadius: 14, backgroundColor: colors.surface, flexShrink: 0 },
   historyItemTitle: { color: colors.text, fontSize: 13, fontFamily: fontFamily.semibold, letterSpacing: -0.02 },
   historyItemDate: { color: colors.textMuted, fontSize: 10.5, fontFamily: fontFamily.regular, marginTop: 3 },
   scoreBadge: { width: 38, height: 29, borderRadius: 11, alignItems: "center", justifyContent: "center", flexShrink: 0 },

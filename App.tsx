@@ -18,6 +18,8 @@ import MainTabs from "./src/navigation/MainTabs";
 import { SubscriptionProvider } from "./src/context/SubscriptionContext";
 import { HistoryProvider } from "./src/context/HistoryContext";
 import { UserProfileProvider } from "./src/context/UserProfileContext";
+// 16 Eylül eklemesi: gerçek hesap sistemi (bkz. context/AuthContext.tsx).
+import { AuthProvider } from "./src/context/AuthContext";
 import { colors } from "./src/theme";
 import { MascotIcon } from "./src/components/Icon";
 
@@ -40,6 +42,11 @@ import SearchScreen from "./src/screens/SearchScreen";
 import LimitReachedScreen from "./src/screens/LimitReachedScreen";
 // 10 Eylül eklemesi: tasarım "B Sonucu paylaş" — son eksik ekran.
 import ShareResultScreen from "./src/screens/ShareResultScreen";
+// 16 Eylül eklemeleri: gerçek hesap sistemi + yasal metin ekranları.
+import LoginScreen from "./src/screens/LoginScreen";
+import SignUpScreen from "./src/screens/SignUpScreen";
+import TermsScreen from "./src/screens/TermsScreen";
+import PrivacyScreen from "./src/screens/PrivacyScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -87,51 +94,61 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <SubscriptionProvider>
-          <HistoryProvider>
-            <UserProfileProvider>
-              <StatusBar style="dark" />
-              <NavigationContainer>
-                <Stack.Navigator
-                  initialRouteName={initialRoute}
-                  screenOptions={{
-                    headerShown: false,
-                    contentStyle: { backgroundColor: colors.bg },
-                  }}
-                >
-                  <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-                  <Stack.Screen name="MainTabs" component={MainTabs} />
-                  <Stack.Screen name="Scan" component={ScanScreen} options={{ presentation: "fullScreenModal" }} />
-                  <Stack.Screen name="Analyzing" component={AnalyzingScreen} />
-                  <Stack.Screen name="Result" component={ResultScreen} />
-                  <Stack.Screen name="Paywall" component={PaywallScreen} options={{ presentation: "modal" }} />
-                  <Stack.Screen name="Compare" component={CompareScreen} />
-                  {/* --- 9 Eylül eklemeleri --- */}
-                  <Stack.Screen name="ProfileEdit" component={ProfileEditScreen} />
-                  <Stack.Screen name="Subscription" component={SubscriptionScreen} />
-                  {/* 9 Eylül düzeltmesi: "presentation: modal" KALDIRILDI —
-                      Payment zaten Paywall'ın (modal) İÇİNDEN push ediliyor;
-                      onu da ayrıca modal yapmak iOS'ta modal-içinde-modal
-                      (iç içe sheet) gibi garip/"sekme sekme" görünen bir
-                      geçişe yol açıyordu. Artık Paywall→Payment→PaymentSuccess
-                      TEK, sürekli bir sheet akışı. */}
-                  <Stack.Screen name="Payment" component={PaymentScreen} />
-                  <Stack.Screen name="PaymentSuccess" component={PaymentSuccessScreen} />
-                  <Stack.Screen name="Notifications" component={NotificationsScreen} />
-                  <Stack.Screen name="Settings" component={SettingsScreen} />
-                  <Stack.Screen name="ReportProblem" component={ReportProblemScreen} />
-                  <Stack.Screen name="ReportSent" component={ReportSentScreen} />
-                  <Stack.Screen name="Search" component={SearchScreen} options={{ presentation: "fullScreenModal" }} />
-                  <Stack.Screen name="LimitReached" component={LimitReachedScreen} options={{ presentation: "modal" }} />
-                  {/* 10 Eylül eklemesi: Sonuç ekranındaki "Paylaş"ın açtığı,
-                      görsel paylaşım kartı önizleme ekranı — Paywall gibi bir
-                      "sheet" hissi için modal. */}
-                  <Stack.Screen name="ShareResult" component={ShareResultScreen} options={{ presentation: "modal" }} />
-                </Stack.Navigator>
-              </NavigationContainer>
-            </UserProfileProvider>
-          </HistoryProvider>
-        </SubscriptionProvider>
+        <AuthProvider>
+          <SubscriptionProvider>
+            <HistoryProvider>
+              <UserProfileProvider>
+                <StatusBar style="dark" />
+                <NavigationContainer>
+                  <Stack.Navigator
+                    initialRouteName={initialRoute}
+                    screenOptions={{
+                      headerShown: false,
+                      contentStyle: { backgroundColor: colors.bg },
+                    }}
+                  >
+                    <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+                    <Stack.Screen name="MainTabs" component={MainTabs} />
+                    <Stack.Screen name="Scan" component={ScanScreen} options={{ presentation: "fullScreenModal" }} />
+                    <Stack.Screen name="Analyzing" component={AnalyzingScreen} />
+                    <Stack.Screen name="Result" component={ResultScreen} />
+                    <Stack.Screen name="Paywall" component={PaywallScreen} options={{ presentation: "modal" }} />
+                    <Stack.Screen name="Compare" component={CompareScreen} />
+                    {/* --- 9 Eylül eklemeleri --- */}
+                    <Stack.Screen name="ProfileEdit" component={ProfileEditScreen} />
+                    <Stack.Screen name="Subscription" component={SubscriptionScreen} />
+                    {/* 9 Eylül düzeltmesi: "presentation: modal" KALDIRILDI —
+                        Payment zaten Paywall'ın (modal) İÇİNDEN push ediliyor;
+                        onu da ayrıca modal yapmak iOS'ta modal-içinde-modal
+                        (iç içe sheet) gibi garip/"sekme sekme" görünen bir
+                        geçişe yol açıyordu. Artık Paywall→Payment→PaymentSuccess
+                        TEK, sürekli bir sheet akışı. */}
+                    <Stack.Screen name="Payment" component={PaymentScreen} />
+                    <Stack.Screen name="PaymentSuccess" component={PaymentSuccessScreen} />
+                    <Stack.Screen name="Notifications" component={NotificationsScreen} />
+                    <Stack.Screen name="Settings" component={SettingsScreen} />
+                    <Stack.Screen name="ReportProblem" component={ReportProblemScreen} />
+                    <Stack.Screen name="ReportSent" component={ReportSentScreen} />
+                    <Stack.Screen name="Search" component={SearchScreen} options={{ presentation: "fullScreenModal" }} />
+                    <Stack.Screen name="LimitReached" component={LimitReachedScreen} options={{ presentation: "modal" }} />
+                    {/* 10 Eylül eklemesi: Sonuç ekranındaki "Paylaş"ın açtığı,
+                        görsel paylaşım kartı önizleme ekranı — Paywall gibi bir
+                        "sheet" hissi için modal. */}
+                    <Stack.Screen name="ShareResult" component={ShareResultScreen} options={{ presentation: "modal" }} />
+                    {/* 16 Eylül eklemeleri: gerçek hesap sistemi + yasal metinler
+                        — hepsi modal (sheet) olarak açılıyor, Paywall/Payment ile
+                        aynı desen (üstteki bir akıştan çıkıp kısa bir görev
+                        tamamlayıp geri dönülen ekranlar). */}
+                    <Stack.Screen name="Login" component={LoginScreen} options={{ presentation: "modal" }} />
+                    <Stack.Screen name="SignUp" component={SignUpScreen} options={{ presentation: "modal" }} />
+                    <Stack.Screen name="Terms" component={TermsScreen} />
+                    <Stack.Screen name="Privacy" component={PrivacyScreen} />
+                  </Stack.Navigator>
+                </NavigationContainer>
+              </UserProfileProvider>
+            </HistoryProvider>
+          </SubscriptionProvider>
+        </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

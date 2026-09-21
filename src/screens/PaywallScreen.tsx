@@ -23,18 +23,25 @@ import {
   AlertTriangleIcon,
   UserIcon,
   HistoryIcon,
+  FlashIcon,
 } from "../components/Icon";
-import { PLAN_INFO, PlanInterval, YEARLY_SAVINGS_PERCENT, YEARLY_MONTHLY_EQUIVALENT, formatPrice } from "../utils/plans";
+import { TIERS, DEFAULT_TIER_ID, TierId, ADDON, getTier } from "../utils/plans";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Paywall">;
 
 // Tasarım kaynağı: "11 Premium (paywall)" ekranı (9 Eylül 2026, kullanıcının
-// Claude Design export'undan). Tasarımda aylık/yıllık iki plan seçeneği var.
-// 9 Eylül eklemesi (3. tur — kullanıcı: "yıllık planı da koymayı unutma"):
-// artık yıllık plan da GERÇEK bir seçenek — SubscriptionContext.activatePremium
-// artık hangi plana ("monthly"/"yearly") abone olunduğunu da kaydediyor
-// (bkz. plans.ts, PaymentScreen, PaymentSuccessScreen, SubscriptionScreen).
+// Claude Design export'undan). Tasarımda aylık/yıllık iki plan seçeneği
+// vardı.
 //
+// 12 Eylül değişikliği (kullanıcı: "farklı farklı premium paketler koyalım,
+// isimler farklı olsun"): aylık/yıllık ikilisi yerine artık DÖRT paket var
+// (Başlangıç/Pro/Premium — bkz. plans.ts > TIERS), her biri kendi aylık
+// tarama KOTASIYLA. Bu yüzden "Sınırsız analiz" vaadi de ARTIK DOĞRU DEĞİL
+// — kaldırıldı. Aşağıdaki minTarama/maxTarama, TIERS'ten otomatik
+// hesaplanıyor ki paket kotaları değişince bu metin de otomatik güncellensin.
+const minTarama = Math.min(...TIERS.map((t) => t.scansPerMonth));
+const maxTarama = Math.max(...TIERS.map((t) => t.scansPerMonth));
+
 // 9 Eylül düzeltmesi (2. tur — kullanıcı: "biraz daha yazılar yazsın, sade
 // kalmasın, ikna edici örnekler olsun"): ÖNEMLİ bir doğruluk sorunu da
 // bununla birlikte düzeltildi. Eski FEATURES listesindeki 4 maddeden
@@ -46,16 +53,16 @@ type Props = NativeStackScreenProps<RootStackParamList, "Paywall">;
 // vaadi olarak listelemek yanıltıcıydı. Aşağıda SADECE gerçek 2 kilidi
 // (canlı örneklerle, ikna edici şekilde) vurguluyoruz; "zaten her zaman
 // ücretsiz" olan güçlü yanları ise ayrı bir güven kutusunda, dürüstçe
-// "bunlar bile ücretsizde bu kadar iyi, sınırsız kullanınca düşün" mantığıyla
-// yine ikna edici bir şekilde kullanıyoruz.
+// "bunlar bile ücretsizde bu kadar iyi, kotan artınca düşün" mantığıyla yine
+// ikna edici bir şekilde kullanıyoruz.
 const FEATURES = [
   {
-    title: "Sınırsız analiz",
-    desc: "Ücretsiz planda ayda 3 taramadan sonra kilitlenirsin. Premium'da bu sınır TAMAMEN kalkar — market rafında bile olsan aklına gelen her ürünü hemen tara.",
+    title: "Çok daha yüksek tarama hakkı",
+    desc: `Ücretsiz planda ayda 3 taramadan sonra kilitlenirsin. Premium paketlerde ayda ${minTarama}'den ${maxTarama}'e kadar tarama hakkın olur — hangisinin sana yettiğini aşağıdan seç.`,
   },
   {
     title: "Sınırsız karşılaştırma",
-    desc: "\"Bu nemlendirici mi daha iyi, yoksa eskisi mi?\" İki taramanı yan yana koy, bileşen bileşen farkı gör — dilediğin kadar, sınırsız.",
+    desc: "\"Bu nemlendirici mi daha iyi, yoksa eskisi mi?\" İki taramanı yan yana koy, bileşen bileşen farkı gör — hangi pakette olursan ol, dilediğin kadar.",
   },
 ];
 
@@ -83,16 +90,23 @@ const SERVICES = [
 ];
 
 export default function PaywallScreen({ navigation }: Props) {
-  // 9 Eylül eklemesi: yıllık plan artık GERÇEK bir seçenek (bkz. plans.ts,
-  // SubscriptionContext.activatePremium). Varsayılan olarak aylık seçili.
-  const [planInterval, setPlanInterval] = useState<PlanInterval>("monthly");
+  // 12 Eylül değişikliği: aylık/yıllık ikilisi yerine artık dört paketten biri
+  // seçiliyor (bkz. plans.ts > TIERS). Varsayılan olarak en dengeli paket
+  // (DEFAULT_TIER_ID = "pro") seçili geliyor.
+  const [selectedTierId, setSelectedTierId] = useState<TierId>(DEFAULT_TIER_ID);
 
   // 9 Eylül düzeltmesi: eskiden bu buton doğrudan activatePremium() çağırıp
   // bir Alert gösteriyordu. Artık tasarımdaki "12 Ödeme" / "I Ödeme başarılı"
   // akışına uyarak önce Payment ekranına gidiyor — gerçek abone etme işlemi
   // (activatePremium) orada, kullanıcı "öde ve başla"ya bastığında gerçekleşiyor.
   const handleSubscribe = () => {
-    navigation.navigate("Payment", { interval: planInterval });
+    navigation.navigate("Payment", { kind: "tier", tierId: selectedTierId });
+  };
+
+  // 12 Eylül eklemesi: abonelik istemeyen ama bir kaç ekstra taramaya
+  // ihtiyacı olan kullanıcılar için — tek seferlik ek tarama paketi.
+  const handleBuyAddon = () => {
+    navigation.navigate("Payment", { kind: "addon" });
   };
 
   return (
@@ -108,8 +122,9 @@ export default function PaywallScreen({ navigation }: Props) {
 
         <Text style={styles.title}>Premium</Text>
         <Text style={styles.subtitle}>
-          Ücretsiz planda ayda 3 ürün deneme hakkın var. Premium ile bu sınır tamamen kalkar; ürünlerini
-          karşılaştırmak da dahil olmak üzere özünde'yi sınırsız kullanırsın.
+          Ücretsiz planda ayda 3 ürün deneme hakkın var. Premium paketlerden biriyle ayda {minTarama}-{maxTarama}
+          {" "}taramaya kadar hakkın olur, ürünlerini karşılaştırmak da dahil olmak üzere özünde'yi çok daha geniş
+          kullanırsın.
         </Text>
 
         <View style={styles.featureCard}>
@@ -141,8 +156,8 @@ export default function PaywallScreen({ navigation }: Props) {
             );
           })}
           <Text style={styles.servicesNote}>
-            Bunların hepsi özünde'nin sunduğu hizmetler. Premium, bunları kısıtlamadan — sınırsız — kullanmanı
-            sağlıyor.
+            Bunların hepsi özünde'nin sunduğu hizmetler. Premium, bunları çok daha geniş bir aylık kotayla
+            kullanmanı sağlıyor.
           </Text>
         </View>
 
@@ -155,23 +170,22 @@ export default function PaywallScreen({ navigation }: Props) {
             </View>
           ))}
           <Text style={styles.alwaysFreeNote}>
-            Temel analiz zaten bu kadar özenliyse, sınırsız kullanınca sana ne kadar işe yarayacağını bir düşün.
+            Temel analiz zaten bu kadar özenliyse, kotan artınca sana ne kadar işe yarayacağını bir düşün.
           </Text>
         </View>
 
-        {/* 9 Eylül eklemesi: aylık/yıllık plan seçimi — artık GERÇEK (bkz.
-            plans.ts). Yıllık fiyat bir örnek/yer tutucu, bkz. o dosyadaki not. */}
-        <View style={styles.planRow}>
-          <PlanOption
-            interval="monthly"
-            selected={planInterval === "monthly"}
-            onPress={() => setPlanInterval("monthly")}
-          />
-          <PlanOption
-            interval="yearly"
-            selected={planInterval === "yearly"}
-            onPress={() => setPlanInterval("yearly")}
-          />
+        {/* 12 Eylül değişikliği: aylık/yıllık ikilisi yerine dört paketten biri
+            seçiliyor (bkz. plans.ts > TIERS). Dikey liste — 3 kart + rozet +
+            tagline yan yana sıkışınca dar ekranlarda okunaksız oluyordu. */}
+        <View style={styles.tierList}>
+          {TIERS.map((tier) => (
+            <TierOption
+              key={tier.id}
+              tier={tier}
+              selected={selectedTierId === tier.id}
+              onPress={() => setSelectedTierId(tier.id)}
+            />
+          ))}
         </View>
 
         <TouchableOpacity onPress={handleSubscribe} activeOpacity={0.9}>
@@ -182,8 +196,17 @@ export default function PaywallScreen({ navigation }: Props) {
             end={{ x: 1, y: 1 }}
             style={styles.subscribeBtn}
           >
-            <Text style={styles.subscribeBtnText}>Premium'a geç</Text>
+            <Text style={styles.subscribeBtnText}>{getTier(selectedTierId).name} paketine geç</Text>
           </LinearGradient>
+        </TouchableOpacity>
+
+        {/* 12 Eylül eklemesi: abonelik istemeyenler için tek seferlik ek
+            tarama paketine düşük vurgulu bir alternatif bağlantı. */}
+        <TouchableOpacity onPress={handleBuyAddon} activeOpacity={0.7} style={styles.addonLink}>
+          <Text style={styles.addonLinkText}>
+            Sadece birkaç tarama mı lazım? Abone olmadan <Text style={styles.addonLinkStrong}>{ADDON.name}</Text> al
+            ({ADDON.priceLabel}, {ADDON.extraScans} tarama)
+          </Text>
         </TouchableOpacity>
 
         <Text style={styles.demoNote}>
@@ -194,53 +217,53 @@ export default function PaywallScreen({ navigation }: Props) {
   );
 }
 
-function PlanOption({
-  interval,
+function TierOption({
+  tier,
   selected,
   onPress,
 }: {
-  interval: PlanInterval;
+  tier: (typeof TIERS)[number];
   selected: boolean;
   onPress: () => void;
 }) {
-  const plan = PLAN_INFO[interval];
   const content = (
     <>
-      {/* 10 Eylül düzeltmesi (kullanıcı geri bildirimi — ekran görüntüsüyle
-          gösterildi): rozet eskiden "position: absolute" ile kartın DIŞINA,
-          üst kenarın üzerine taşıyordu — ScrollView'da üstteki komşu
-          elemanın (dürüst kutu / bazen "Premium'a geç" butonunun) üzerine
-          BİNİYORDU. Artık normal akışta, kartın İÇİNDE, etiketin hemen
-          üzerinde duran sıradan bir satır — taşma/örtüşme fiziksel olarak
-          mümkün değil. */}
-      {interval === "yearly" && (
-        <View style={styles.planBadge}>
-          <Text style={styles.planBadgeText}>%{YEARLY_SAVINGS_PERCENT} tasarruf</Text>
+      <View style={styles.tierHeaderRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.tierName, selected && styles.tierNameSelected]}>{tier.name}</Text>
+          <Text style={[styles.tierTagline, selected && styles.tierTaglineSelected]}>{tier.tagline}</Text>
         </View>
-      )}
-      <Text style={[styles.planOptionLabel, selected && styles.planOptionLabelSelected]}>{plan.label}</Text>
-      <Text style={[styles.planOptionPrice, selected && styles.planOptionPriceSelected]}>{plan.priceLabel}</Text>
-      <Text style={[styles.planOptionSub, selected && styles.planOptionSubSelected]}>
-        {interval === "yearly" ? `aya bölününce ${formatPrice(YEARLY_MONTHLY_EQUIVALENT)}/ay` : "her ay yenilenir"}
-      </Text>
+        {tier.badge && (
+          <View style={styles.tierBadge}>
+            <FlashIcon size={10} color="#fff" />
+            <Text style={styles.tierBadgeText}>{tier.badge}</Text>
+          </View>
+        )}
+      </View>
+      <View style={[styles.tierFooterRow, selected && styles.tierFooterRowSelected]}>
+        <Text style={[styles.tierQuota, selected && styles.tierQuotaSelected]}>
+          Ayda <Text style={styles.tierQuotaNum}>{tier.scansPerMonth}</Text> tarama
+        </Text>
+        <Text style={[styles.tierPrice, selected && styles.tierPriceSelected]}>{tier.priceLabel}/ay</Text>
+      </View>
     </>
   );
 
   if (!selected) {
     return (
-      <TouchableOpacity style={styles.planOption} onPress={onPress} activeOpacity={0.8}>
+      <TouchableOpacity style={styles.tierOption} onPress={onPress} activeOpacity={0.8}>
         {content}
       </TouchableOpacity>
     );
   }
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={{ flex: 1 }}>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.85}>
       <LinearGradient
         colors={primaryGradient}
         locations={primaryGradientLocations}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[styles.planOption, styles.planOptionSelected]}
+        style={[styles.tierOption, styles.tierOptionSelected]}
       >
         {content}
       </LinearGradient>
@@ -335,9 +358,8 @@ const styles = StyleSheet.create({
   alwaysFreeRow: { flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 5 },
   alwaysFreeText: { color: colors.textMuted, fontSize: 11, flex: 1 },
   alwaysFreeNote: { color: colors.textFaint, fontSize: 10, lineHeight: 15, marginTop: 4, fontStyle: "italic" },
-  planRow: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.lg },
-  planOption: {
-    flex: 1,
+  tierList: { gap: spacing.sm, marginBottom: spacing.md },
+  tierOption: {
     borderRadius: radius.lg,
     borderWidth: 1.5,
     borderColor: colors.hairline,
@@ -345,7 +367,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     position: "relative",
   },
-  planOptionSelected: {
+  tierOptionSelected: {
     borderWidth: 0,
     ...shadows.glow(colors.primaryDarker),
     shadowOpacity: 0.3,
@@ -353,21 +375,48 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
   },
-  planBadge: {
-    alignSelf: "flex-start",
+  tierHeaderRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
+  tierName: { color: colors.text, fontSize: 14.5, fontFamily: fontFamily.semibold, letterSpacing: -0.2 },
+  tierNameSelected: { color: "#fff" },
+  tierTagline: { color: colors.textFaint, fontSize: 10.5, marginTop: 2 },
+  tierTaglineSelected: { color: "rgba(255,255,255,0.75)" },
+  tierBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
     backgroundColor: good.solid,
     borderRadius: radius.pill,
     paddingHorizontal: 8,
     paddingVertical: 3,
-    marginBottom: 6,
+    flexShrink: 0,
   },
-  planBadgeText: { color: "#fff", fontSize: 9, fontFamily: fontFamily.bold },
-  planOptionLabel: { color: colors.textMuted, fontSize: 11.5, fontFamily: fontFamily.semibold },
-  planOptionLabelSelected: { color: "rgba(255,255,255,0.85)" },
-  planOptionPrice: { color: colors.text, fontSize: 17, fontFamily: fontFamily.bold, marginTop: 3, letterSpacing: -0.3 },
-  planOptionPriceSelected: { color: "#fff" },
-  planOptionSub: { color: colors.textFaint, fontSize: 9.5, marginTop: 3 },
-  planOptionSubSelected: { color: "rgba(255,255,255,0.75)" },
+  tierBadgeText: { color: "#fff", fontSize: 9, fontFamily: fontFamily.bold },
+  tierFooterRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "baseline",
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.hairline,
+  },
+  tierFooterRowSelected: { borderTopColor: "rgba(255,255,255,0.22)" },
+  tierQuota: { color: colors.textMuted, fontSize: 11.5 },
+  tierQuotaSelected: { color: "rgba(255,255,255,0.85)" },
+  tierQuotaNum: { fontFamily: fontFamily.bold },
+  tierPrice: { color: colors.text, fontSize: 16, fontFamily: fontFamily.bold, letterSpacing: -0.3 },
+  tierPriceSelected: { color: "#fff" },
+  addonLink: {
+    backgroundColor: colors.cardAlt,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.hairline,
+    paddingVertical: 10,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.md,
+  },
+  addonLinkText: { color: colors.textMuted, fontSize: 11.5, lineHeight: 16, textAlign: "center" },
+  addonLinkStrong: { color: colors.primaryDark, fontFamily: fontFamily.semibold },
   subscribeBtn: {
     borderRadius: radius.pill,
     height: 50,

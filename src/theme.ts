@@ -152,6 +152,19 @@ export const good = {
   text: "#3B4D20",
 };
 
+// 11 Eylül eklemesi (kullanıcı isteği — "ana sayfada faydalı ve riskli
+// sayılarının renkleri biraz daha canlanabilir, daha kırmızı daha yeşil
+// gibi, biraz daha belli etsin"): Ana Sayfa'daki istatistik kartlarının
+// SAYI renkleri için, markanın soluk/toprak tonlu good/danger renklerinden
+// (yukarıdaki good.text/danger.text — rozet/etiket metinlerinde KASITLI
+// olarak toprak tonu) daha CANLI, gerçek kırmızı/yeşile daha yakın 2 ayrı
+// ton. SADECE bu iki sayısal vurgu için kullanılıyor; diğer ekranlardaki
+// good/danger rozet renkleri bilerek değiştirilmedi.
+export const vividStat = {
+  good: "#2F8F46",
+  risky: "#C0392B",
+};
+
 // Tasarımın kendi ölçek adımları (4.4 / 8.8 / 13.2 / 17.6 / 26.4 / 35.2px) —
 // en yakın tam piksele yuvarlandı.
 export const spacing = {

@@ -1,66 +1,65 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
 import { colors, spacing, radius, fontFamily, shadows, accent as accentRamp } from "../theme";
 import { ChevronLeft, BellIcon } from "../components/Icon";
+import { NotificationPrefs, DEFAULT_NOTIFICATION_PREFS, getNotificationPrefs, saveNotificationPrefs, getNextReminderDate } from "../services/notifications";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Notifications">;
 
-const PREFS_KEY = "urun-analiz:notificationPrefs";
-
-interface NotificationPrefs {
-  allergenAlerts: boolean;
-  formulaChanges: boolean;
-  marketing: boolean;
+// 16 Eylül değişikliği: burada eskiden "Bildirimin incelendi / Kaydettiğin
+// bir ürün güncellendi / Deneme hakkın azalıyor" gibi SAHTE/örnek bir
+// bildirim akışı vardı — hiçbir zaman gerçek olmadı. Kullanıcı haklı olarak
+// bunun artık çalışan gerçek hatırlatma sistemiyle alakasız olduğunu
+// belirtti; sahte feed tamamen kaldırıldı. Yerine, GERÇEKTEN planlanmış bir
+// sonraki hatırlatmanın tarihini gösteren bir durum kartı kondu.
+//
+// 18 Eylül değişikliği: "Hatırlatmalar" için ayrı bir açma/kapama anahtarı
+// KALDIRILDI — kullanıcı geri bildirimi: telefonun kendi bildirim izni
+// zaten bunun aç/kapa kontrolü, ayrıca bir anahtara gerek yok. Hatırlatmalar
+// artık tamamen otomatik: uygulama açıldığında (bkz. HomeScreen.tsx >
+// ensureRemindersScheduled) bildirim izni sessizce istenir, izin verilirse
+// hatırlatmalar kendiliğinden planlanır. Bu ekran sadece o otomatik durumu
+// GÖSTERİR — burada bir şey açıp kapatmıyorsun.
+function formatReminderDate(date: Date): string {
+  const dayName = new Intl.DateTimeFormat("tr-TR", { weekday: "long" }).format(date);
+  const dayMonth = new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "long" }).format(date);
+  const time = new Intl.DateTimeFormat("tr-TR", { hour: "2-digit", minute: "2-digit" }).format(date);
+  return `${dayName}, ${dayMonth} · ${time}`;
 }
 
-const DEFAULT_PREFS: NotificationPrefs = { allergenAlerts: true, formulaChanges: true, marketing: false };
-
-// Tasarımdaki "Bildirimin incelendi / Kaydettiğin bir ürün güncellendi /
-// Deneme hakkın azalıyor" akışı GERÇEK bir bildirim geçmişi olmadığı için
-// (backend'de push/bildirim sistemi yok) burada ÖRNEK olduğu açıkça
-// belirtilen sabit içerik olarak kalıyor — ama alttaki tercih anahtarları
-// (toggle'lar) GERÇEK, cihazda kalıcı (AsyncStorage) bir ayar.
-const SAMPLE_FEED = [
-  {
-    title: "Bildirimin incelendi",
-    body: "“Koruma ve Nem” ürününün bileşen listesi düzeltildi. Teşekkürler.",
-    time: "2 saat önce",
-  },
-  {
-    title: "Kaydettiğin bir ürün güncellendi",
-    body: "Onarıcı Şampuan'ın formülü değişti; yeni etikette 2 alerjen var.",
-    time: "Dün",
-  },
-  {
-    title: "Deneme hakkın azalıyor",
-    body: "Ücretsiz planda 1 analiz hakkın kaldı.",
-    time: "3 gün önce",
-  },
-];
-
 export default function NotificationsScreen({ navigation }: Props) {
-  const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_PREFS);
+  const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_NOTIFICATION_PREFS);
   const [loaded, setLoaded] = useState(false);
+  const [nextReminder, setNextReminder] = useState<Date | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const raw = await AsyncStorage.getItem(PREFS_KEY);
-        if (raw) setPrefs({ ...DEFAULT_PREFS, ...JSON.parse(raw) });
-      } finally {
-        setLoaded(true);
-      }
-    })();
+  const refreshStatus = useCallback(async () => {
+    try {
+      const [p, next] = await Promise.all([getNotificationPrefs(), getNextReminderDate()]);
+      setPrefs(p);
+      setNextReminder(next);
+    } finally {
+      setLoaded(true);
+    }
   }, []);
+
+  // Ekran her odaklandığında (ör. Ayarlar'dan tekrar buraya girince) durumu
+  // tazeler — HomeScreen'in az önce bildirim izni isteyip hatırlatma
+  // planlamış olabileceği ihtimaline karşı, sadece mount'ta değil her
+  // görünür olduğunda okunuyor.
+  useFocusEffect(
+    useCallback(() => {
+      refreshStatus();
+    }, [refreshStatus])
+  );
 
   const updatePref = async (key: keyof NotificationPrefs, value: boolean) => {
     const next = { ...prefs, [key]: value };
     setPrefs(next);
-    await AsyncStorage.setItem(PREFS_KEY, JSON.stringify(next));
+    await saveNotificationPrefs(next);
   };
 
   return (
@@ -72,20 +71,29 @@ export default function NotificationsScreen({ navigation }: Props) {
         </TouchableOpacity>
         <Text style={styles.title}>Bildirimler</Text>
 
-        <Text style={styles.sectionLabel}>Son bildirimler (örnek)</Text>
+        <Text style={styles.sectionLabel}>Hatırlatma durumu</Text>
         <View style={styles.feedCard}>
-          {SAMPLE_FEED.map((n, idx) => (
-            <View key={n.title} style={[styles.feedRow, idx < SAMPLE_FEED.length - 1 && styles.feedRowDivider]}>
-              <View style={styles.feedIconWrap}>
-                <BellIcon size={14} color={colors.primaryDark} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.feedTitle}>{n.title}</Text>
-                <Text style={styles.feedBody}>{n.body}</Text>
-                <Text style={styles.feedTime}>{n.time}</Text>
-              </View>
+          <View style={styles.feedRow}>
+            <View style={styles.feedIconWrap}>
+              <BellIcon size={14} color={colors.primaryDark} />
             </View>
-          ))}
+            <View style={{ flex: 1 }}>
+              {nextReminder ? (
+                <>
+                  <Text style={styles.feedTitle}>Sıradaki hatırlatma planlandı</Text>
+                  <Text style={styles.feedBody}>{formatReminderDate(nextReminder)}</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.feedTitle}>Henüz hatırlatma planlanmadı</Text>
+                  <Text style={styles.feedBody}>
+                    Telefonunun bildirim izni açıldığında tarama hatırlatmaları (haftada 2 kez) kendiliğinden
+                    başlar — ekstra bir şey yapmana gerek yok.
+                  </Text>
+                </>
+              )}
+            </View>
+          </View>
         </View>
 
         <Text style={styles.sectionLabel}>Bildirim tercihleri</Text>
@@ -116,8 +124,9 @@ export default function NotificationsScreen({ navigation }: Props) {
           />
         </View>
         <Text style={styles.footnote}>
-          Not: Bu tercihler cihazında kaydedilir. Uygulamanın gerçek anlık bildirim (push) altyapısı henüz kurulmadı —
-          bu anahtarlar, o altyapı bağlandığında hangi bildirimlerin sana gönderileceğini belirleyecek.
+          Bu üç tercih, ileride sana hangi bildirimlerin gönderileceğini belirleyecek — istediğin zaman buradan
+          değiştirebilirsin. Tarama hatırlatmalarını tamamen kapatmak istersen telefonunun Ayarlar {"›"} Bildirimler
+          bölümünden özünde'nin bildirim iznini kapatman yeterli.
         </Text>
       </ScrollView>
     </SafeAreaView>
@@ -173,11 +182,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   feedRow: { flexDirection: "row", gap: spacing.sm, padding: spacing.md },
-  feedRowDivider: { borderBottomWidth: 1, borderBottomColor: colors.hairline },
   feedIconWrap: { width: 30, height: 30, borderRadius: 10, backgroundColor: colors.cardAlt, alignItems: "center", justifyContent: "center" },
   feedTitle: { color: colors.text, fontSize: 12.5, fontFamily: fontFamily.semibold },
   feedBody: { color: colors.textMuted, fontSize: 11, marginTop: 2, lineHeight: 16 },
-  feedTime: { color: colors.textFaint, fontSize: 10, marginTop: 4 },
 
   prefsCard: {
     backgroundColor: colors.cardAlt,

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Share } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -8,9 +8,10 @@ import { colors, spacing, radius, fontFamily, shadows } from "../theme";
 import { useHistory } from "../context/HistoryContext";
 import { useUserProfile } from "../context/UserProfileContext";
 import { useSubscription } from "../context/SubscriptionContext";
+import { useAuth } from "../context/AuthContext";
 import { ChevronLeft, ChevronRight } from "../components/Icon";
 import { ONBOARDING_KEY } from "./OnboardingScreen";
-import { PLAN_INFO } from "../utils/plans";
+import { getTier, DEFAULT_TIER_ID } from "../utils/plans";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Settings">;
 
@@ -27,16 +28,18 @@ function Row({
   subtitle,
   onPress,
   last,
+  danger,
 }: {
   title: string;
   subtitle?: string;
   onPress: () => void;
   last?: boolean;
+  danger?: boolean;
 }) {
   return (
     <TouchableOpacity style={[styles.row, last && { borderBottomWidth: 0 }]} onPress={onPress} activeOpacity={0.7}>
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={styles.rowTitle} numberOfLines={1}>
+        <Text style={[styles.rowTitle, danger && { color: colors.danger }]} numberOfLines={1}>
           {title}
         </Text>
         {!!subtitle && (
@@ -54,6 +57,8 @@ export default function SettingsScreen({ navigation }: Props) {
   const { history, clearHistory } = useHistory();
   const { profile, clearProfile } = useUserProfile();
   const { state } = useSubscription();
+  const { user, signOut, deleteAccount } = useAuth();
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   const handleClearHistory = () => {
     if (history.length === 0) {
@@ -113,6 +118,43 @@ export default function SettingsScreen({ navigation }: Props) {
     );
   };
 
+  // 16 Eylül eklemesi: GERÇEK çıkış/hesap silme — bkz. context/AuthContext.tsx.
+  const handleSignOut = () => {
+    Alert.alert("Çıkış yap", "Hesabından çıkış yapmak istediğine emin misin?", [
+      { text: "Vazgeç", style: "cancel" },
+      { text: "Çıkış yap", style: "destructive", onPress: () => signOut() },
+    ]);
+  };
+
+  // "Hesabımı sil" — Ayarlar'daki "Verilerimi sil"den (sadece cihazdaki
+  // geçmiş/profili siler) FARKLI: bu, hesabının kendisini (e-posta/şifre
+  // kaydını, Supabase'deki kullanıcıyı) KALICI olarak siler. Gerçek silme
+  // işlemi backend'de (server/src/index.js > /account/delete) "service role"
+  // anahtarıyla yapılıyor — bkz. AuthContext.tsx > deleteAccount.
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "Hesabımı sil",
+      "Hesabın kalıcı olarak silinecek. Bu işlem geri alınamaz. Devam etmek istediğine emin misin?",
+      [
+        { text: "Vazgeç", style: "cancel" },
+        {
+          text: "Hesabımı sil",
+          style: "destructive",
+          onPress: async () => {
+            setDeletingAccount(true);
+            const result = await deleteAccount();
+            setDeletingAccount(false);
+            if (result.error) {
+              Alert.alert("Hesap silinemedi", result.error);
+              return;
+            }
+            Alert.alert("Hesabın silindi", "Hesabın kalıcı olarak silindi.");
+          },
+        },
+      ]
+    );
+  };
+
   const handleDeleteData = () => {
     Alert.alert(
       "Verilerimi sil",
@@ -143,15 +185,34 @@ export default function SettingsScreen({ navigation }: Props) {
 
         <Text style={styles.sectionLabel}>Hesap</Text>
         <View style={styles.card}>
-          <Row title="Giriş yap" subtitle="Aboneliği cihazlar arasında taşımak için" onPress={() => handleComingSoon("Giriş yap")} />
+          {/* 16 Eylül değişikliği: GERÇEK giriş durumu — bkz. dosya başındaki
+              not. Not: hesap girişi şu an aboneliği/geçmişi cihazlar arası
+              TAŞIMIYOR (bkz. AuthContext.tsx başındaki uzun not) — bu satırın
+              alt yazısı bu yüzden artık o vaadi tekrarlamıyor. */}
+          {user ? (
+            <Row title="Hesabım" subtitle={user.email} onPress={handleSignOut} />
+          ) : (
+            <Row title="Giriş yap" subtitle="E-posta veya Google ile" onPress={() => navigation.navigate("Login")} />
+          )}
           <Row
             title="Aboneliğim"
-            subtitle={state.isPremium ? `Premium · ${PLAN_INFO[state.planInterval || "monthly"].label}` : "Ücretsiz plan · 3 ürün deneme"}
+            subtitle={state.isPremium ? `Premium · ${getTier(state.tierId || DEFAULT_TIER_ID).name}` : "Ücretsiz plan · 3 ürün deneme"}
             onPress={() => navigation.navigate("Subscription")}
           />
           <Row title="Ödeme yöntemleri" onPress={() => handleComingSoon("Ödeme yöntemleri")} />
           <Row title="Verilerimi indir" onPress={handleExportData} />
-          <Row title="Verilerimi sil" onPress={handleDeleteData} last />
+          <Row title="Verilerimi sil" subtitle="Cihazdaki profil ve analiz geçmişi" onPress={handleDeleteData} last={!user} />
+          {/* Sadece giriş yapılmışsa görünür — hesabı olmayan birinin
+              "silecek" bir hesabı da yok. */}
+          {user && (
+            <Row
+              title={deletingAccount ? "Hesap siliniyor..." : "Hesabımı sil"}
+              subtitle="Hesabını kalıcı olarak siler"
+              onPress={deletingAccount ? () => {} : handleDeleteAccount}
+              danger
+              last
+            />
+          )}
         </View>
 
         <Text style={styles.sectionLabel}>Uygulama</Text>
@@ -164,8 +225,10 @@ export default function SettingsScreen({ navigation }: Props) {
 
         <Text style={styles.sectionLabel}>Yasal</Text>
         <View style={styles.card}>
-          <Row title="Kullanım koşulları" onPress={() => handleComingSoon("Kullanım koşulları")} />
-          <Row title="Gizlilik politikası" onPress={() => handleComingSoon("Gizlilik politikası")} />
+          {/* 16 Eylül değişikliği: artık GERÇEK içerik gösteren ekranlara
+              açılıyor (öncesinde ikisi de "yakında" diyordu). */}
+          <Row title="Kullanım koşulları" onPress={() => navigation.navigate("Terms")} />
+          <Row title="Gizlilik politikası" onPress={() => navigation.navigate("Privacy")} />
           <Row title="Sorun bildir" onPress={() => navigation.navigate("ReportProblem", undefined)} last />
         </View>
 

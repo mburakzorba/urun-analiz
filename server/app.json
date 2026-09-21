@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "5334deb4-c652-4fd1-9469-2c62ca680ce7"
+      }
+    },
+    "android": {
+      "package": "com.burakzorba3737.urunanalizserver"
+    }
+  }
+}

@@ -59,8 +59,13 @@ export default function OnboardingScreen({ navigation }: Props) {
       });
       await AsyncStorage.setItem(ONBOARDING_KEY, "1");
     } finally {
+      // 11 Eylül düzeltmesi (kullanıcı geri bildirimi — "analize başla
+      // butonuna basınca direkt kamera açılıyor, onun yerine ana sayfaya
+      // gelsin"): eskiden burada onboarding biter bitmez kameraya
+      // (navigation.navigate("Scan")) da geçiliyordu. Artık sadece Ana
+      // Sayfa'ya iniliyor — kullanıcı taramayı ne zaman başlatacağına kendi
+      // karar veriyor.
       navigation.replace("MainTabs");
-      navigation.navigate("Scan");
     }
   };
 
@@ -155,7 +160,11 @@ export default function OnboardingScreen({ navigation }: Props) {
           onPress={() => (step < 2 ? setStep(step + 1) : finish())}
           style={styles.cta}
         >
-          <Text style={styles.ctaText}>{step === 0 ? "Devam et" : step === 1 ? "Devam et" : "İlk ürünümü tara"}</Text>
+          {/* 11 Eylül düzeltmesi: eskiden burada "İlk ürünümü tara" yazıyordu
+              çünkü buton direkt kamerayı açıyordu — artık Ana Sayfa'ya
+              indiğimiz için bu metin yanıltıcı olurdu, "Başlayalım"a
+              çevirdik. */}
+          <Text style={styles.ctaText}>{step === 0 ? "Devam et" : step === 1 ? "Devam et" : "Başlayalım"}</Text>
         </TouchableOpacity>
 
         {step === 0 && (

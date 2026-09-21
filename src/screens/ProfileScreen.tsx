@@ -1,12 +1,13 @@
 import React from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { MainTabScreenProps } from "../navigation/types";
-import { colors, spacing, radius, fontFamily, shadows, accent as accentRamp, accent2 } from "../theme";
+import { colors, spacing, radius, fontFamily, shadows, accent as accentRamp, accent2, FLOATING_TAB_BAR_HEIGHT } from "../theme";
 import { useSubscription } from "../context/SubscriptionContext";
 import { useUserProfile } from "../context/UserProfileContext";
-import { PLAN_INFO } from "../utils/plans";
+import { useAuth } from "../context/AuthContext";
+import { getTier, DEFAULT_TIER_ID, CHEAPEST_TIER } from "../utils/plans";
 import {
   ChevronRight,
   StarIcon,
@@ -16,6 +17,7 @@ import {
   SettingsIcon,
   AlertTriangleIcon,
   MailIcon,
+  LogoutIcon,
 } from "../components/Icon";
 
 type Props = MainTabScreenProps<"Profile">;
@@ -26,14 +28,10 @@ type Props = MainTabScreenProps<"Profile">;
 // stack'teki "ProfileEdit") gösteriyordu; tasarımda bu bir MENÜ/HUB ekranı —
 // abonelik durumu + hesap + ayarlar/bildirim/sorun-bildir kısayolları.
 //
-// "Hesabınla giriş yap" tasarımda var ama uygulamada gerçek bir e-posta/hesap
-// sistemi (backend auth) YOK — bu yüzden dokununca sahte bir "giriş yapıldı"
-// göstermek yerine dürüstçe "bu özellik henüz aktif değil" diyoruz (aşağıdaki
-// handleComingSoon). Aynı mantık "Yeni kart ekle" gibi ödeme-yöntemi
-// satırları için de geçerli (bkz. SubscriptionScreen/SettingsScreen).
-function handleComingSoon(title: string) {
-  Alert.alert(title, "Bu özellik şu anda uygulamanın demo sürümünde aktif değil — yakında eklenecek.");
-}
+// 16 Eylül değişikliği: "Hesabınla giriş yap" artık GERÇEK (bkz.
+// context/AuthContext.tsx) — önceden burada sahte bir "yakında" uyarısı
+// vardı, şimdi gerçekten Login ekranına götürüyor ve giriş yapılmışsa
+// hesabın e-postasını + "Çıkış yap"ı gösteriyor.
 
 function MenuRow({
   icon,
@@ -69,8 +67,27 @@ function MenuRow({
 }
 
 export default function ProfileScreen({ navigation }: Props) {
-  const { state, remainingFreeScans } = useSubscription();
+  const { state, remainingFreeScans, totalRemainingScans } = useSubscription();
   const { profile, isProfileEmpty } = useUserProfile();
+  const { user, signOut } = useAuth();
+
+  const handleSignOut = () => {
+    Alert.alert("Çıkış yap", "Hesabından çıkış yapmak istediğine emin misin?", [
+      { text: "Vazgeç", style: "cancel" },
+      { text: "Çıkış yap", style: "destructive", onPress: () => signOut() },
+    ]);
+  };
+  // 11 Eylül düzeltmesi (kullanıcı geri bildirimi — "profil kısmında sorun
+  // bildir butonu aşağıda kalıyor"): bu ekran, üstünde YÜZEN (position:
+  // absolute) sekme çubuğu olan bir sekme ekranı — çubuğun kendi yüksekliği
+  // React Navigation'ın normal tabBarStyle hesaplamasına dahil değil (bkz.
+  // theme.ts > FLOATING_TAB_BAR_HEIGHT'ın üstündeki uzun not). Eskiden bu
+  // ekranın alt boşluğu (paddingBottom) bunu hesaba katmıyordu — menüdeki en
+  // son satır ("Sorun bildir") çubuğun ALTINDA/ARKASINDA kalabiliyordu,
+  // özellikle alt kenarında ekstra boşluk (gesture bar/insets.bottom) olan
+  // cihazlarda. Şimdi çubuğun yüksekliğini + cihazın alt güvenli alanını +
+  // biraz nefes payını elle ekliyoruz.
+  const insets = useSafeAreaInsets();
 
   // 9 Eylül eklemesi: artık isim varsa avatar baş harfini ondan al (daha
   // kişisel) — yoksa eskisi gibi cilt tipinin baş harfine, o da yoksa "•"ya
@@ -84,7 +101,12 @@ export default function ProfileScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.container,
+          { paddingBottom: FLOATING_TAB_BAR_HEIGHT + insets.bottom + spacing.xl },
+        ]}
+      >
         <View style={styles.headerRow}>
           <LinearGradient
             colors={[accent2[200], accent2[400]]}
@@ -111,12 +133,21 @@ export default function ProfileScreen({ navigation }: Props) {
               </Text>
             </View>
           </View>
+          {/* 13 Eylül düzeltmesi: ek tarama paketi bakiyesi (bonusScans)
+              artık bu notta da görünüyor — önceden sadece kota/deneme
+              rakamı yazıyordu, satın alınmış ek taramalar hiç yansımıyordu. */}
           <Text style={styles.planNote}>
             {state.isPremium
-              ? "Sınırsız analiz ve derin bileşen raporu açık."
+              ? `${getTier(state.tierId || DEFAULT_TIER_ID).name} paketindesin — ayda ${
+                  getTier(state.tierId || DEFAULT_TIER_ID).scansPerMonth
+                } taramaya kadar hakkın var.${
+                  state.bonusScans > 0 ? ` + ${state.bonusScans} ek tarama hakkın var.` : ""
+                }`
               : `${state.freeScansLimit} ürün deneme hakkının ${
                   state.freeScansLimit - remainingFreeScans
-                }'ini kullandın. Premium ile sınırsız analiz — ${PLAN_INFO.monthly.priceLabel}/ay'dan başlayan fiyatlarla.`}
+                }'ini kullandın.${
+                  state.bonusScans > 0 ? ` + ${state.bonusScans} ek tarama hakkın var.` : ""
+                } Premium paketlerle çok daha fazla tarama — ${CHEAPEST_TIER.priceLabel}/ay'dan başlayan fiyatlarla.`}
           </Text>
           <TouchableOpacity
             onPress={() => navigation.navigate(state.isPremium ? "Subscription" : "Paywall")}
@@ -129,22 +160,32 @@ export default function ProfileScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
 
-        {/* Hesabınla giriş yap — bkz. dosya başındaki not: gerçek bir hesap
-            sistemi henüz yok, dokununca dürüstçe "yakında" mesajı çıkıyor. */}
-        <View style={styles.loginCard}>
-          <Text style={styles.loginTitle}>Hesabınla giriş yap</Text>
-          <Text style={styles.loginSub}>
-            Zorunlu değil — profilin ve aboneliğin cihaz değiştirsen de seninle kalsın diye.
-          </Text>
-          <TouchableOpacity
-            style={styles.loginBtn}
-            activeOpacity={0.8}
-            onPress={() => handleComingSoon("E-posta ile giriş yap")}
-          >
-            <MailIcon size={14} color={colors.text} />
-            <Text style={styles.loginBtnText}>E-posta ile giriş yap</Text>
-          </TouchableOpacity>
-        </View>
+        {/* 16 Eylül değişikliği: gerçek hesap durumu — bkz. dosya başındaki
+            not. Giriş yapılmamışsa eskisi gibi "giriş yap" daveti, giriş
+            yapılmışsa hesabın e-postası + çıkış yap. */}
+        {user ? (
+          <View style={styles.loginCard}>
+            <Text style={styles.loginTitle}>Hesabın</Text>
+            <Text style={styles.loginSub} numberOfLines={1}>
+              {user.email}
+            </Text>
+            <TouchableOpacity style={styles.loginBtn} activeOpacity={0.8} onPress={handleSignOut}>
+              <LogoutIcon size={14} color={colors.text} />
+              <Text style={styles.loginBtnText}>Çıkış yap</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.loginCard}>
+            <Text style={styles.loginTitle}>Hesabınla giriş yap</Text>
+            <Text style={styles.loginSub}>
+              Zorunlu değil — e-posta veya Google ile bir hesap oluşturursun, gerekirse hesabını buradan silebilirsin.
+            </Text>
+            <TouchableOpacity style={styles.loginBtn} activeOpacity={0.8} onPress={() => navigation.navigate("Login")}>
+              <MailIcon size={14} color={colors.text} />
+              <Text style={styles.loginBtnText}>E-posta ile giriş yap</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         <View style={styles.menuCard}>
           <MenuRow
@@ -156,7 +197,11 @@ export default function ProfileScreen({ navigation }: Props) {
           <MenuRow
             icon={<CreditCardIcon size={16} color={colors.text} />}
             title="Aboneliğim"
-            subtitle={state.isPremium ? `Premium · ${PLAN_INFO[state.planInterval || "monthly"].label}` : "Ücretsiz plan · 3 ürün deneme"}
+            subtitle={
+              state.isPremium
+                ? `Premium · ${getTier(state.tierId || DEFAULT_TIER_ID).name}`
+                : `Ücretsiz plan · ${totalRemainingScans} hak kaldı`
+            }
             onPress={() => navigation.navigate("Subscription")}
           />
           <MenuRow

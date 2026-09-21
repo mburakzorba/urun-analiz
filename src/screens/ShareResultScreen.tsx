@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, Alert, Platform } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 // 10 Eylül eklemesi (tasarım "B Sonucu paylaş" — 34 tasarımdan son eksik
@@ -9,8 +9,30 @@ import { LinearGradient } from "expo-linear-gradient";
 // kullanıyoruz — bu paket Expo Go'da ÇALIŞMAZ, bkz. NASIL_UYGULARIM.md'deki
 // "ÖNEMLİ: Test yöntemi değişiyor" bölümü.
 import { captureRef } from "react-native-view-shot";
-import * as MediaLibrary from "expo-media-library";
+// 11 Eylül düzeltmesi (kullanıcı geri bildirimi — "fotoğraf kaydetmede
+// problem var", ekrandaki teknik detay: "saveToLibraryAsync ... is
+// deprecated. Import the legacy API from expo-media-library/legacy"):
+// Expo SDK 57'de expo-media-library'nin ana giriş noktası YENİ bir API'ye
+// (asset tabanlı, izin modeli değişmiş) geçti — eski `requestPermissionsAsync`
+// / `saveToLibraryAsync` çağrıları artık "deprecated" hatası fırlatıyor.
+// Kullandığımız fonksiyonlar tam olarak eski API'nin imzasıyla eşleştiği
+// için, Expo'nun bunun için özel olarak bıraktığı "/legacy" alt yolundan
+// import ediyoruz — davranış aynı, sadece import yolu değişti.
+import * as MediaLibrary from "expo-media-library/legacy";
 import * as Clipboard from "expo-clipboard";
+// 11 Eylül düzeltmesi (kullanıcı geri bildirimi — "paylaş butonuna basınca
+// hata aldım"): React Native'in ÇEKİRDEK `Share` modülünün `url` alanı
+// SADECE iOS'ta çalışıyor — Android'de RN bunu tamamen YOK SAYIYOR, sadece
+// "message" (düz metin) gönderiliyor. Bu yüzden Android'de paylaşım sayfası
+// açılıyor ama görsel HİÇ eklenmiyordu (kart resmi değil, sadece metin
+// paylaşılıyordu) — videoda gördüğümüz tam olarak bu. `expo-sharing`,
+// Android'de görseli doğru şekilde (bir FileProvider üzerinden) paylaşım
+// sayfasına ekleyen, iOS'ta da sorunsuz çalışan resmi Expo modülü — bu
+// yüzden `Share.share()` yerine `Sharing.shareAsync()` kullanıyoruz. NOT:
+// bu YENİ bir native paket — kullanıcının bir kere daha (hızlıca)
+// `eas build --profile development` alması gerekiyor, bkz.
+// NASIL_UYGULARIM.md.
+import * as Sharing from "expo-sharing";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
 import { colors, spacing, radius, fontFamily, shadows, primaryGradient, primaryGradientLocations, good, danger } from "../theme";
@@ -90,9 +112,23 @@ export default function ShareResultScreen({ route, navigation }: Props) {
     .filter((l): l is string => !!l)
     .join("\n");
 
+  // 11 Eylül düzeltmesi: bir toggle'a (Puan/Bileşen etiketleri/Kişisel notum)
+  // dokunduktan hemen sonra "Paylaş"/"Kaydet"e basılırsa, kartın YENİ
+  // düzeni (layout) native tarafta henüz TAM oturmamış olabiliyor —
+  // react-native-view-shot bazen bunun ortasında yakalamaya çalışınca
+  // "Failed to snapshot view tag" gibi bir hata fırlatabiliyor. Yakalamadan
+  // önce çift requestAnimationFrame ile bir sonraki çizim turunun
+  // TAMAMLANDIĞINDAN emin oluyoruz — hafif ama bilinen/yaygın bir çözüm.
+  function waitForNextFrame(): Promise<void> {
+    return new Promise((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    });
+  }
+
   async function captureCard(): Promise<string> {
     if (!cardRef.current) throw new Error("Kart hazır değil");
-    // "tmpfile" sonucu, gerek Share gerek MediaLibrary'nin beklediği bir
+    await waitForNextFrame();
+    // "tmpfile" sonucu, gerek Sharing gerek MediaLibrary'nin beklediği bir
     // dosya URI'si döndürüyor (base64 yerine) — büyük kartlarda daha hızlı/
     // güvenilir.
     return captureRef(cardRef, { format: "png", quality: 1, result: "tmpfile" });
@@ -103,13 +139,22 @@ export default function ShareResultScreen({ route, navigation }: Props) {
     setSharing(true);
     try {
       const uri = await captureCard();
-      // iOS'ta "url" alanı resmi paylaşım sayfasına native olarak ekler;
-      // Android'de de react-native'in Share API'si file:// URI'sini
-      // destekliyor. "message" alanını Android'de de ekliyoruz ki alıcı
-      // uygulama (WhatsApp/Instagram) hem görseli hem kısa metni alsın.
-      await Share.share({ url: uri, message: Platform.OS === "android" ? summaryText : undefined });
-    } catch (e) {
-      Alert.alert("Paylaşılamadı", "Kart oluşturulurken bir sorun oluştu, tekrar dener misin?");
+      const canShare = await Sharing.isAvailableAsync();
+      if (!canShare) {
+        // Çok nadir bir cihaz/OS durumu — o zaman en azından metni panoya
+        // kopyalayıp kullanıcıyı bilgilendiriyoruz, sessizce başarısız
+        // olmuyoruz.
+        await Clipboard.setStringAsync(summaryText);
+        Alert.alert("Paylaşım desteklenmiyor", "Bu cihazda paylaşım sayfası açılamadı — özet metni panoya kopyaladık.");
+        return;
+      }
+      await Sharing.shareAsync(uri, { mimeType: "image/png", dialogTitle: "Sonucu paylaş" });
+    } catch (e: any) {
+      console.error("[ShareResult] Paylaşım hatası:", e);
+      Alert.alert(
+        "Paylaşılamadı",
+        `Kart oluşturulurken bir sorun oluştu, tekrar dener misin?\n\n(Teknik detay: ${String(e?.message || e).slice(0, 140)})`
+      );
     } finally {
       setSharing(false);
     }
@@ -130,8 +175,12 @@ export default function ShareResultScreen({ route, navigation }: Props) {
       const uri = await captureCard();
       await MediaLibrary.saveToLibraryAsync(uri);
       Alert.alert("Kaydedildi", "Kart galerine kaydedildi.");
-    } catch (e) {
-      Alert.alert("Kaydedilemedi", "Kart kaydedilirken bir sorun oluştu, tekrar dener misin?");
+    } catch (e: any) {
+      console.error("[ShareResult] Kaydetme hatası:", e);
+      Alert.alert(
+        "Kaydedilemedi",
+        `Kart kaydedilirken bir sorun oluştu, tekrar dener misin?\n\n(Teknik detay: ${String(e?.message || e).slice(0, 140)})`
+      );
     } finally {
       setSaving(false);
     }
@@ -164,13 +213,13 @@ export default function ShareResultScreen({ route, navigation }: Props) {
             View'ı native ağaçtan optimize edip silmesini engelliyor, aksi
             halde react-native-view-shot boş/hatalı bir görüntü yakalayabilir. */}
         <View ref={cardRef} collapsable={false} style={styles.card}>
-          <LinearGradient
-            colors={primaryGradient}
-            locations={primaryGradientLocations}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.cardHeaderStripe}
-          />
+          {/* 11 Eylül düzeltmesi: bu şerit eskiden bir LinearGradient'ti —
+              react-native-view-shot'un bazı cihazlarda GPU/Skia ile çizilen
+              gradyan/degrade katmanlarını yakalamakta sorun çıkarabildiği
+              bilinen bir durum olduğu için, kartın YAKALANACAK kısmındaki
+              tek olası riskli öğeyi kaldırıp düz bir renkle değiştirdik —
+              görsel fark neredeyse yok, ama yakalama artık daha güvenilir. */}
+          <View style={styles.cardHeaderStripe} />
           <View style={styles.cardBody}>
             <View style={styles.cardTopRow}>
               <View style={{ flex: 1, minWidth: 0 }}>
@@ -287,7 +336,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
     ...shadows.lifted("#2E2B25"),
   },
-  cardHeaderStripe: { height: 8, width: "100%" },
+  cardHeaderStripe: { height: 8, width: "100%", backgroundColor: colors.primaryDark },
   cardBody: { padding: 20 },
   cardTopRow: { flexDirection: "row", alignItems: "flex-start", gap: 14 },
   cardProductName: { fontSize: 18, fontFamily: fontFamily.bold, letterSpacing: -0.4, color: colors.text },

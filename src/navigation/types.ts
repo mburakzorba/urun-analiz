@@ -2,6 +2,7 @@ import type { CompositeScreenProps, NavigatorScreenParams } from "@react-navigat
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { ProductAnalysis } from "../types";
+import { TierId } from "../utils/plans";
 
 // Ana Sayfa/Geçmiş/Profil artık alt sekme (bottom tab) — Claude Design
 // canvas'ındaki marka kimliği mockup'ında olduğu gibi, ortada kamera FAB'ı
@@ -49,13 +50,25 @@ export type RootStackParamList = {
   // stack'te ayrı bir push edilen ekrana taşındı.
   ProfileEdit: undefined;
   Subscription: undefined;
-  // 9 Eylül eklemesi: yıllık plan seçeneği — Paywall'da seçilen plan buraya
-  // taşınıyor. "monthly"/"yearly" verilmezse (eski çağrılar) PaymentScreen
-  // varsayılan olarak "monthly" kullanıyor.
-  Payment: { interval?: "monthly" | "yearly" } | undefined;
-  PaymentSuccess: undefined;
+  // 12 Eylül değişikliği: eskiden "monthly"/"yearly" plan aralığı taşınıyordu
+  // — artık tek bir "Premium" planı yok, dört ayrı paket (bkz. plans.ts >
+  // TierId) VE tek seferlik "ek tarama paketi" (addon) var. Aynı Ödeme
+  // ekranı ikisini de gösterebiliyor (kind alanına göre kopyası değişiyor).
+  Payment: { kind: "tier"; tierId: TierId } | { kind: "addon" };
+  // kind verilmezse (ör. eski bir çağrı) "tier" (abonelik) varsayılır.
+  PaymentSuccess: { kind?: "tier" | "addon" } | undefined;
   Notifications: undefined;
   Settings: undefined;
+  // 16 Eylül eklemesi: gerçek hesap sistemi (e-posta/şifre + Google ile
+  // giriş, bkz. context/AuthContext.tsx) — öncesinde "Hesabınla giriş yap"
+  // sadece "yakında" diyen sahte bir butondu.
+  Login: undefined;
+  SignUp: undefined;
+  // 16 Eylül eklemesi: Ayarlar > Yasal'daki "Kullanım koşulları"/"Gizlilik
+  // politikası" artık gerçek içerik gösteren ekranlara açılıyor (öncesinde
+  // ikisi de "yakında" diyen sahte butonlardı).
+  Terms: undefined;
+  Privacy: undefined;
   // analysis verilmişse (ör. Result ekranındaki "Sorun bildir"), o analiz
   // önceden seçili gelir; verilmezse kullanıcı geçmişinden seçer.
   ReportProblem: { analysis?: ProductAnalysis } | undefined;

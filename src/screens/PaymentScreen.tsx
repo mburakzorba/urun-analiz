@@ -1,37 +1,57 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
 import { colors, spacing, radius, fontFamily, shadows } from "../theme";
 import { useSubscription } from "../context/SubscriptionContext";
-import { CreditCardIcon, ChevronLeft, CheckIcon } from "../components/Icon";
-import { PLAN_INFO } from "../utils/plans";
+import { ChevronLeft } from "../components/Icon";
+import { getTier, ADDON } from "../utils/plans";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Payment">;
 
-// Tasarım kaynağı: "12 Ödeme" ekranı (9 Eylül 2026). ÖNEMLİ UYARLAMA:
-// tasarımda örnek olarak zaten kayıtlı bir kart ("•••• 4821, Elif Y. ·
-// 09/28") gösteriliyor — ama bu uygulamada gerçek bir ödeme altyapısı
-// (Stripe/RevenueCat vb.) henüz YOK, dolayısıyla var olmayan bir kartı
-// "kayıtlı" gibi göstermek yanıltıcı olurdu. Bu yüzden burada gerçek bir kart
-// numarası GİRME ALANI da YOK, var olmayan bir kart da GÖSTERİLMİYOR — sadece
-// "Kart ekle" / "Apple Pay" seçenekleri var, ikisi de seçilince aynı demo
-// akışını (activatePremium) tetikliyor. README.md > "Abonelik / Ödeme
-// Entegrasyonu" bölümünde anlatılan gerçek altyapı bağlandığında, bu ekran
-// gerçek bir kart formu/Apple Pay sheet'i açacak şekilde güncellenebilir.
+// 21 Eylül değişikliği (RevenueCat entegrasyonu): tasarım kaynağı "12 Ödeme"
+// ekranı, örnek bir kayıtlı kart ve "Kart ekle / Apple Pay" seçimi
+// gösteriyordu — ama Google Play Billing'de (Android, bu uygulamanın şu anki
+// tek platformu) ödeme YÖNTEMİ seçimi uygulama içinde YAPILMAZ; "Satın al"a
+// basınca Google Play'in KENDİ satın alma ekranı açılır ve kullanıcı kayıtlı
+// kartını/Google Pay bakiyesini ORADA seçer. Bu yüzden burada artık bir
+// yöntem seçici YOK — bu ekran sadece neyin alındığını özetliyor ve satın
+// almayı BAŞLATIYOR; asıl ödeme akışı Google Play'e ait.
 export default function PaymentScreen({ route, navigation }: Props) {
-  const { activatePremium } = useSubscription();
-  const interval = route.params?.interval || "monthly";
-  const plan = PLAN_INFO[interval];
-  const [method, setMethod] = useState<"card" | "applepay">("card");
+  const { activatePremium, purchaseAddon } = useSubscription();
+  const params = route.params || { kind: "tier", tierId: "pro" as const };
+  const isAddon = params.kind === "addon";
+  const tier = params.kind === "tier" ? getTier(params.tierId) : null;
+
+  const priceLabel = isAddon ? ADDON.priceLabel : tier!.priceLabel;
+  const summaryTitle = isAddon ? `özünde · ${ADDON.name}` : `özünde Premium · ${tier!.name}`;
+  const summarySub = isAddon
+    ? `Tek seferlik satın alma — ${ADDON.extraScans} ek tarama, abonelik değil`
+    : `Ayda ${tier!.scansPerMonth} tarama · her ay yenilenir, iptal edilebilir`;
+
   const [loading, setLoading] = useState(false);
 
   const handlePay = async () => {
+    if (Platform.OS !== "android") {
+      Alert.alert("Yakında", "Bu platformda satın alma henüz desteklenmiyor.");
+      return;
+    }
     setLoading(true);
     try {
-      await activatePremium(interval);
-      navigation.replace("PaymentSuccess");
+      if (isAddon) {
+        await purchaseAddon();
+        navigation.replace("PaymentSuccess", { kind: "addon" });
+      } else {
+        await activatePremium(tier!.id);
+        navigation.replace("PaymentSuccess", { kind: "tier" });
+      }
+    } catch (err) {
+      console.warn("[PaymentScreen] Satın alma başarısız:", err);
+      Alert.alert(
+        "Satın alma tamamlanamadı",
+        err instanceof Error ? err.message : "Bilinmeyen bir sorun oluştu, lütfen tekrar dene."
+      );
     } finally {
       setLoading(false);
     }
@@ -48,64 +68,29 @@ export default function PaymentScreen({ route, navigation }: Props) {
 
         <View style={styles.summaryCard}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.summaryTitle}>özünde Premium · {plan.label}</Text>
-            <Text style={styles.summarySub}>{plan.renewalNote}</Text>
+            <Text style={styles.summaryTitle}>{summaryTitle}</Text>
+            <Text style={styles.summarySub}>{summarySub}</Text>
           </View>
-          <Text style={styles.summaryPrice}>{plan.priceLabel}</Text>
+          <Text style={styles.summaryPrice}>{priceLabel}</Text>
         </View>
 
         <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>Bugün ödenecek</Text>
-          <Text style={styles.totalValue}>{plan.priceLabel}</Text>
+          <Text style={styles.totalValue}>{priceLabel}</Text>
         </View>
 
-        <Text style={styles.sectionLabel}>Ödeme yöntemi</Text>
-        <TouchableOpacity
-          style={[styles.methodRow, method === "card" && styles.methodRowActive]}
-          activeOpacity={0.8}
-          onPress={() => setMethod("card")}
-        >
-          <CreditCardIcon size={17} color={colors.text} />
-          <Text style={styles.methodText}>Kredi veya banka kartı ekle</Text>
-          {method === "card" && (
-            <View style={styles.methodCheck}>
-              <CheckIcon size={11} color="#fff" strokeWidth={3} />
-            </View>
-          )}
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.methodRow, method === "applepay" && styles.methodRowActive]}
-          activeOpacity={0.8}
-          onPress={() => setMethod("applepay")}
-        >
-          <View style={styles.appleGlyphWrap}>
-            <Text style={styles.appleGlyphText}>Pay</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.methodText}>Apple Pay</Text>
-            <Text style={styles.methodSub}>Tek dokunuşla öde</Text>
-          </View>
-          {method === "applepay" && (
-            <View style={styles.methodCheck}>
-              <CheckIcon size={11} color="#fff" strokeWidth={3} />
-            </View>
-          )}
-        </TouchableOpacity>
-
         <Text style={styles.disclaimer}>
-          Ödemeler güvenli altyapı üzerinden alınır; kart bilgileri uygulamada saklanmaz.
+          "Öde ve başla"ya bastığında Google Play'in kendi güvenli satın alma ekranı açılır — kart/Google Pay
+          bilgilerin Google Play üzerinden yönetilir, bu uygulama tarafından hiç görülmez veya saklanmaz.
         </Text>
 
         <TouchableOpacity onPress={handlePay} disabled={loading} activeOpacity={0.9} style={{ marginTop: spacing.md }}>
           <View style={styles.payBtn}>
-            <Text style={styles.payBtnText}>{loading ? "İşleniyor..." : `${plan.priceLabel} öde ve başla`}</Text>
+            <Text style={styles.payBtnText}>{loading ? "İşleniyor..." : `${priceLabel} öde ve başla`}</Text>
           </View>
         </TouchableOpacity>
 
-        <Text style={styles.termsText}>
-          Devam ederek Kullanım Koşulları ve Gizlilik Politikası'nı kabul ediyorsun. (Demo ödeme — gerçek bir tahsilat
-          yapılmaz.)
-        </Text>
+        <Text style={styles.termsText}>Devam ederek Kullanım Koşulları ve Gizlilik Politikası'nı kabul ediyorsun.</Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -141,33 +126,7 @@ const styles = StyleSheet.create({
   totalLabel: { color: colors.textMuted, fontSize: 12.5, fontFamily: fontFamily.semibold },
   totalValue: { color: colors.text, fontSize: 12.5, fontFamily: fontFamily.bold },
 
-  sectionLabel: { fontSize: 10, letterSpacing: 1.2, textTransform: "uppercase", fontFamily: fontFamily.semibold, color: colors.textFaint, marginBottom: spacing.sm },
-  methodRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    backgroundColor: colors.card,
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    borderColor: colors.hairline,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  methodRowActive: { borderColor: colors.primary, backgroundColor: "#FFF8F1" },
-  methodText: { color: colors.text, fontSize: 13, fontFamily: fontFamily.semibold, flex: 1 },
-  methodSub: { color: colors.textFaint, fontSize: 10.5, marginTop: 2 },
-  appleGlyphWrap: { width: 30, height: 20, borderRadius: 5, backgroundColor: colors.text, alignItems: "center", justifyContent: "center" },
-  appleGlyphText: { color: "#fff", fontSize: 10, fontFamily: fontFamily.bold, letterSpacing: -0.2 },
-  methodCheck: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  disclaimer: { color: colors.textFaint, fontSize: 10.5, lineHeight: 15, marginTop: spacing.xs },
+  disclaimer: { color: colors.textFaint, fontSize: 10.5, lineHeight: 15, marginTop: spacing.xs, marginBottom: spacing.sm },
 
   payBtn: {
     height: 50,

@@ -6,21 +6,26 @@ import { RootStackParamList } from "../navigation/types";
 import { colors, spacing, radius, fontFamily, shadows, good } from "../theme";
 import { useSubscription } from "../context/SubscriptionContext";
 import { CheckIcon } from "../components/Icon";
-import { PLAN_INFO, addInterval } from "../utils/plans";
+import { getTier, DEFAULT_TIER_ID, ADDON, addOneMonth } from "../utils/plans";
 
 type Props = NativeStackScreenProps<RootStackParamList, "PaymentSuccess">;
 
-function formatRenewalDate(periodStartISO: string, interval: "monthly" | "yearly"): string {
-  const next = addInterval(periodStartISO, interval);
+function formatRenewalDate(periodStartISO: string): string {
+  const next = addOneMonth(periodStartISO);
   return next.toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
 }
 
 // Tasarım kaynağı: "I Ödeme başarılı" ekranı (9 Eylül 2026) — PaymentScreen'in
 // (demo) "öde ve başla" butonundan sonra buraya düşülüyor.
-export default function PaymentSuccessScreen({ navigation }: Props) {
+//
+// 12 Eylül değişikliği: artık iki farklı satın alma sonrası buraya
+// düşülebiliyor — pakete abone olma ("tier") ya da tek seferlik ek tarama
+// paketi alma ("addon"), bkz. PaymentScreen. İkisi için de farklı, doğru
+// bir "başarılı" mesajı gösteriyoruz.
+export default function PaymentSuccessScreen({ route, navigation }: Props) {
   const { state } = useSubscription();
-  const interval = state.planInterval || "monthly";
-  const plan = PLAN_INFO[interval];
+  const isAddon = route.params?.kind === "addon";
+  const tier = getTier(state.tierId || DEFAULT_TIER_ID);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -28,18 +33,37 @@ export default function PaymentSuccessScreen({ navigation }: Props) {
         <View style={styles.iconBadge}>
           <CheckIcon size={30} color="#fff" strokeWidth={3} />
         </View>
-        <Text style={styles.title}>Premium aktif</Text>
-        <Text style={styles.subtitle}>Ödemen alındı. Artık sınırsız analiz ve derin bileşen raporu açık.</Text>
+        <Text style={styles.title}>{isAddon ? "Ek paket eklendi" : "Premium aktif"}</Text>
+        <Text style={styles.subtitle}>
+          {isAddon
+            ? `Ödemen alındı. Hesabına ${ADDON.extraScans} ek tarama hakkı tanımlandı — paket kotan bitse bile bunları kullanabilirsin.`
+            : `Ödemen alındı. Artık ayda ${tier.scansPerMonth} taramaya kadar hakkın var, karşılaştırma da dahil sınırsız kullanabilirsin.`}
+        </Text>
 
         <View style={styles.card}>
-          <View style={styles.cardRow}>
-            <Text style={styles.cardLabel}>Plan</Text>
-            <Text style={styles.cardValue}>{plan.label} · {plan.priceLabel}</Text>
-          </View>
-          <View style={[styles.cardRow, { marginTop: spacing.sm }]}>
-            <Text style={styles.cardLabel}>Sonraki yenileme</Text>
-            <Text style={styles.cardValue}>{formatRenewalDate(state.currentPeriodStart, interval)}</Text>
-          </View>
+          {isAddon ? (
+            <>
+              <View style={styles.cardRow}>
+                <Text style={styles.cardLabel}>Paket</Text>
+                <Text style={styles.cardValue}>{ADDON.name} · {ADDON.priceLabel}</Text>
+              </View>
+              <View style={[styles.cardRow, { marginTop: spacing.sm }]}>
+                <Text style={styles.cardLabel}>Kalan ek tarama</Text>
+                <Text style={styles.cardValue}>{state.bonusScans}</Text>
+              </View>
+            </>
+          ) : (
+            <>
+              <View style={styles.cardRow}>
+                <Text style={styles.cardLabel}>Plan</Text>
+                <Text style={styles.cardValue}>{tier.name} · {tier.priceLabel}/ay</Text>
+              </View>
+              <View style={[styles.cardRow, { marginTop: spacing.sm }]}>
+                <Text style={styles.cardLabel}>Sonraki yenileme</Text>
+                <Text style={styles.cardValue}>{formatRenewalDate(state.currentPeriodStart)}</Text>
+              </View>
+            </>
+          )}
         </View>
 
         <TouchableOpacity

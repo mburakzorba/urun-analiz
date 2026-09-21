@@ -18,6 +18,7 @@ import ScoreRing from "../components/ScoreRing";
 import GaugeTrack from "../components/GaugeTrack";
 import SegmentedTabs from "../components/SegmentedTabs";
 import { ChevronLeft, StarIcon, AlertTriangleIcon, CheckIcon } from "../components/Icon";
+import ProductThumb from "../components/ProductThumb";
 import { useUserProfile } from "../context/UserProfileContext";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Result">;
@@ -182,7 +183,7 @@ export default function ResultScreen({ route, navigation }: Props) {
         </View>
 
         <View style={styles.headerRow}>
-          <View style={styles.thumb} />
+          <ProductThumb category={analysis.category} productName={analysis.productName} size={58} />
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={styles.productName} numberOfLines={1}>{analysis.productName}</Text>
             {!!analysis.category && <Text style={styles.productMeta}>{analysis.category}</Text>}
@@ -442,7 +443,6 @@ const styles = StyleSheet.create({
   shareBtnText: { color: colors.text, fontSize: 12, fontFamily: fontFamily.bold },
 
   headerRow: { flexDirection: "row", gap: 14, alignItems: "center", marginBottom: spacing.md },
-  thumb: { width: 58, height: 58, borderRadius: 18, backgroundColor: colors.surface, flexShrink: 0 },
   productName: { fontSize: 17, fontFamily: fontFamily.bold, letterSpacing: -0.4, color: colors.text },
   productMeta: { color: colors.textMuted, fontSize: 12.5, marginTop: 3 },
   mockBadge: { marginTop: spacing.xs, alignSelf: "flex-start", paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: radius.pill },

@@ -48,16 +48,31 @@ export interface ProductAnalysis {
 
 export interface SubscriptionState {
   isPremium: boolean;
-  // Bu ay yapılan TÜM taramalar (Premium dahil) — Premium kullanıcılarda
-  // "âdil kullanım" sınırını (aşırı/kötüye kullanım) tespit etmek için de
-  // kullanılıyor, sadece ücretsiz plan sayacı değil.
+  // Bu ay yapılan taramalar — hem ücretsiz sayaç HEM de (premium ise) o
+  // paketin aylık kotasına karşı sayılıyor (bkz. plans.ts > TIERS).
   scansUsedThisMonth: number;
   freeScansLimit: number;
   currentPeriodStart: string; // ISO tarih, ayın başı
-  // 9 Eylül eklemesi: hangi plana abone olundu (aylık/yıllık) — sadece
-  // isPremium true ise anlamlı. Premium olmayan/eski kayıtlarda yok
-  // olabilir; ekranlar bu durumda "monthly" varsayıyor (bkz. plans.ts).
-  planInterval?: "monthly" | "yearly";
+  // 12 Eylül değişikliği: tek bir "Premium" planı yerine artık dört ayrı
+  // paket var (Başlangıç/Pro/Premium/Elite — bkz. plans.ts > TierId). Sadece
+  // isPremium true ise anlamlı. Premium olmayan/eski kayıtlarda yok olabilir.
+  tierId?: "baslangic" | "pro" | "premium" | "elite";
+  // 12 Eylül eklemesi: tek seferlik "ek tarama paketi" (top-up) satın
+  // alımlarından biriken, henüz kullanılmamış ekstra tarama hakkı. Aya bağlı
+  // DEĞİL — ay değişince sıfırlanmaz, kullanılana kadar hesapta kalır.
+  bonusScans: number;
+  // 13 Eylül eklemesi: bugüne kadar satın alınmış TOPLAM ek tarama hakkı
+  // (bonusScans harcandıkça bu sayı AZALMAZ — sadece yeni alımda artar).
+  // Sadece "Aboneliğim" ekranındaki ek tarama kullanım BARI'nı çizebilmek
+  // için var (kaç tanesi kullanıldı / toplam kaçtı) — bonusScans (kalan
+  // bakiye) tek başına bunu göstermeye yetmiyordu.
+  bonusScansTotal: number;
+  // 21 Eylül eklemesi (RevenueCat entegrasyonu): ek tarama paketi
+  // satın alımlarının RevenueCat işlem (transaction) kimlikleri — aynı
+  // satın alımın (ör. bir "satın alımları geri yükle" çağrısında tekrar
+  // görülürse) bonusScans'e İKİNCİ KEZ eklenmesini önlemek için. Sadece
+  // son ~20 kimlik tutulur, listenin sonsuza kadar büyümesi gerekmiyor.
+  processedAddonTransactionIds?: string[];
 }
 
 // --- Kullanıcı Profili (kişiselleştirme) ---
