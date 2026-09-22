@@ -185,7 +185,10 @@ export default function HistoryScreen({ navigation }: Props) {
       <FlatList
         data={visibleHistory}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContainer}
+        contentContainerStyle={[
+          styles.listContainer,
+          { paddingBottom: FLOATING_TAB_BAR_HEIGHT + insets.bottom + spacing.xl },
+        ]}
         ListEmptyComponent={
           history.length === 0 ? (
             // Tasarım kaynağı: "F Boş geçmiş" ekranı (9 Eylül 2026).

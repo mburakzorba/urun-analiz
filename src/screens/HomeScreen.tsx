@@ -1,9 +1,9 @@
 import React, { useMemo, useEffect } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { MainTabScreenProps } from "../navigation/types";
-import { colors, spacing, radius, fontFamily, shadows, accent2, vividStat } from "../theme";
+import { colors, spacing, radius, fontFamily, shadows, accent2, vividStat, FLOATING_TAB_BAR_HEIGHT } from "../theme";
 import ProductThumb from "../components/ProductThumb";
 import { useSubscription } from "../context/SubscriptionContext";
 import { useHistory } from "../context/HistoryContext";
@@ -28,6 +28,13 @@ export default function HomeScreen({ navigation }: Props) {
   const { state, canScan, totalRemainingScans } = useSubscription();
   const { history } = useHistory();
   const { profile, isProfileEmpty } = useUserProfile();
+  // 22 Eylül düzeltmesi (kullanıcı geri bildirimi — "iki ürünü karşılaştır
+  // kısmı bar ile üst üste denk geliyor"): Profil sekmesinde 11 Eylül'de
+  // aynı sebeple düzeltilen sorunun aynısı — bu ekran de YÜZEN (position:
+  // absolute) sekme çubuğunun ÜSTÜNDE, ama sabit paddingBottom çubuğun
+  // gerçek yüksekliğini (FLOATING_TAB_BAR_HEIGHT + insets.bottom) hesaba
+  // katmıyordu, son kart (compareCard) çubuğun arkasında kalabiliyordu.
+  const insets = useSafeAreaInsets();
 
   // 18 Eylül değişikliği: eskiden hatırlatma izni SADECE Bildirimler
   // ekranındaki bir anahtara basılınca isteniyordu. Kullanıcı geri bildirimi
@@ -96,7 +103,12 @@ export default function HomeScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.container,
+          { paddingBottom: FLOATING_TAB_BAR_HEIGHT + insets.bottom + spacing.xl },
+        ]}
+      >
         <View style={styles.headerRow}>
           <View style={{ flex: 1 }}>
             <Text style={styles.headerSub} numberOfLines={1}>{subtitle}</Text>
